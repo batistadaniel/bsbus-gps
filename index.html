@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>BsBus Operacional 7.0</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --cor-bsbus: #4dff00;
+            --surface: rgba(255, 255, 255, 0.95);
+            --surface-solid: #ffffff;
+            --text-main: #1e293b;
+            --text-sec: #64748b;
+            --border: rgba(0, 0, 0, 0.15);
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body, html { height: 100%; width: 100%; overflow: hidden; background: #e5e5e5; }
+        #map { height: 100%; width: 100%; z-index: 0; }
+
+        .leaflet-control-attribution { display: none !important; }
+
+        /* === TOP BAR === */
+        .top-bar {
+            position: absolute; top: max(10px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+            width: 94%; max-width: 400px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+        }
+        .top-bar > * { pointer-events: auto; }
+
+        .search-container { background: white; width: 100%; height: 48px; display: flex; align-items: center; padding: 0 15px; border-radius: 24px; position: relative; box-shadow: var(--shadow); border: var(--border); }
+        #search { flex: 1; border: none; background: transparent; font-size: 16px; outline: none; height: 100%; color: var(--text-main); font-weight: 500; margin-left: 10px; padding-right: 30px; }
+        
+        .search-clear { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; background: rgba(128,128,128,0.2); border-radius: 50%; display: none; justify-content: center; align-items: center; cursor: pointer; color: var(--text-sec); font-size: 12px; font-weight: 800; }
+        .search-clear.visible { display: flex; }
+
+        .search-tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+        .tag { background: var(--text-main); color: var(--surface-solid); font-size: 11px; padding: 4px 10px; border-radius: 20px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px; }
+        
+        .suggestions { background: var(--surface-solid); margin-top: 5px; border-radius: 12px; max-height: 45vh; overflow-y: auto; display: none; box-shadow: var(--shadow); color: var(--text-main); width: 100%; }
+        .suggestion-item { padding: 12px 15px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 14px; transition: background 0.1s; }
+        .suggestion-item.highlighted { background: rgba(37, 99, 235, 0.15); color: var(--primary); font-weight: 700; }
+
+        /* === UI STACK === */
+        .leaflet-bottom.leaflet-right {
+            display: flex; flex-direction: column; gap: 10px;
+            bottom: 300px !important; margin-right: 15px !important;
+            z-index: 1001;
+        }
+        .leaflet-control-layers {
+            border-radius: 12px !important; box-shadow: var(--shadow) !important;
+            background: var(--surface) !important; border: 1px solid rgba(0,0,0,0.1) !important;
+        }
+
+        /* === PAINEL DE SETORES === */
+        .control-panel {
+            position: absolute; bottom: 30px; right: 15px; width: 240px; 
+            background: white; padding: 15px; border-radius: 16px; 
+            box-shadow: var(--shadow); border: 1px solid var(--border); z-index: 1000;
+        }
+        .panel-title { font-size: 11px; font-weight: 800; color: var(--text-sec); text-transform: uppercase; margin-bottom: 10px; }
+        .filter-item { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; margin-bottom: 6px; cursor: pointer; }
+        .filter-item input { width: 18px; height: 18px; accent-color: var(--cor-bsbus); }
+        .divider { height: 1px; background: #eee; margin: 10px 0; }
+
+        /* === MARCADORES === */
+        .bus-marker-custom {
+            background: var(--cor-bsbus); border: 2px solid #000; color: #000;
+            font-weight: 900; font-size: 11px; padding: 2px 6px; border-radius: 6px;
+            white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            position: absolute; transform: translate(-50%, -50%); display: block;
+        }
+
+        /* === POPUP === */
+        .leaflet-popup-content-wrapper { background: white; border-radius: 14px; padding: 0; box-shadow: var(--shadow); }
+        .leaflet-popup-content { margin: 0 !important; width: 230px !important; }
+        .p-header { 
+            padding: 6px 10px; font-weight: 800; text-align: center; 
+            background: #f1f5f9; border-top-left-radius: 14px; border-top-right-radius: 14px;
+            border-bottom: 3px solid var(--cor-bsbus); font-size: 14px;
+        }
+        .p-body { padding: 10px 15px; font-size: 12px; }
+        .p-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .p-label { color: var(--text-sec); font-weight: 500; }
+        .p-val { font-weight: 700; color: #000; text-align: right; }
+    </style>
+</head>
+
+<body>
+
+    <div id="map"></div>
+
+    <div class="top-bar">
+        <div class="glass-panel search-container">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--text-sec)"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="search" placeholder="Linha ou prefixo..." autocomplete="off" inputmode="numeric">
+            <div class="search-clear" id="btn-search-clear" onclick="limparBuscaInput()">✕</div>
+        </div>
+        <div id="search-tags" class="search-tags"></div>
+        <div id="suggestions" class="suggestions"></div>
+    </div>
+
+    <div class="control-panel">
+        <div class="panel-title">Setores Operacionais</div>
+        <div id="sector-filters">
+            <label class="filter-item"><input type="checkbox" class="chk-sector" value="Brazlandia" checked> Brazlândia</label>
+            <label class="filter-item"><input type="checkbox" class="chk-sector" value="Setor O" checked> Setor "O"</label>
+            <label class="filter-item"><input type="checkbox" class="chk-sector" value="Recanto" checked> Recanto</label>
+            <label class="filter-item"><input type="checkbox" class="chk-sector" value="QNQ" checked> QNQ/QNR</label>
+            <label class="filter-item"><input type="checkbox" class="chk-sector" value="Sof Sul" checked> Sof Sul</label>
+        </div>
+        <div class="divider"></div>
+        <label class="filter-item"><input type="checkbox" id="chk-com-linha" checked> Com Linha</label>
+        <label class="filter-item"><input type="checkbox" id="chk-sem-linha" checked> Sem Linha</label>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const API_URL = "https://gps-bsbus.vercel.app/veiculos";
+        const BSBUS_GREEN = "#4dff00";
+
+        // === CONFIGURAÇÃO DE MAPAS E PERSISTÊNCIA ===
+        const savedLayer = localStorage.getItem('lastMapLayer') || "Ruas";
+
+        const tiles = {
+            "Ruas": L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'),
+            "Híbrido": L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }),
+            "Padrão": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
+            "Satélite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}')
+        };
+
+        const map = L.map('map', { zoomControl: false }).setView([-15.7942, -47.8822], 12);
+        
+        // Aplica o mapa salvo ou o padrão
+        tiles[savedLayer].addTo(map);
+
+        L.control.layers(tiles, null, { position: 'bottomright' }).addTo(map);
+
+        // Listener para salvar a escolha do mapa
+        map.on('baselayerchange', (e) => {
+            localStorage.setItem('lastMapLayer', e.name);
+        });
+
+        let markers = {};
+        let busDataRaw = [];
+        let activePolylines = [];
+        let dadosTracado = null;
+        let termosBusca = [];
+        let itemSelecionado = null;
+        let highlightedIndex = -1;
+
+        function parseDateBR(dataStr, horaStr) {
+            if(!dataStr) return new Date();
+            const p = dataStr.split('/');
+            return new Date(`${p[2]}-${p[1]}-${p[0]}T${horaStr}`);
+        }
+
+        function getSector(prefixo) {
+            let pStr = String(prefixo);
+            let core = 0;
+            if (pStr.startsWith('50')) core = parseInt(pStr.substring(2, pStr.length - 1));
+            else if (pStr.startsWith('71')) core = parseInt(pStr.substring(1, pStr.length - 1));
+
+            if ((core >= 1 && core <= 33) || (core >= 1079 && core <= 1092) || (core >= 1101 && core <= 1129)) return "Brazlandia";
+            if ((core >= 1033 && core <= 1078) || (core >= 1093 && core <= 1100) || (core >= 206 && core <= 346) || (core >= 492 && core <= 506)) return "Setor O";
+            if ((core >= 385 && core <= 459) || (core >= 460 && core <= 471)) return "Recanto";
+            if ((core >= 34 && core <= 205) || (core >= 472 && core <= 491)) return "QNQ";
+            if ((core >= 347 && core <= 384) || (core >= 1130 && core <= 1132)) return "Sof Sul";
+            return "Outro";
+        }
+
+        function getLiveStatus(dataStr, horaStr) {
+            const last = parseDateBR(dataStr, horaStr);
+            const now = new Date();
+            let diff = Math.floor((now - last) / 1000);
+            if (diff < 0) diff = 0;
+            const dd = Math.floor(diff / 86400), hh = Math.floor((diff % 86400) / 3600), mm = Math.floor((diff % 3600) / 60), ss = diff % 60;
+            if (dd > 0) return `${dd}d ${hh}h ${mm}m ${ss}s atrás`;
+            if (hh > 0) return `${hh}h ${mm}m ${ss}s atrás`;
+            if (mm > 0) return `${mm}min ${ss}seg atrás`;
+            return `${ss} seg atrás`;
+        }
+
+        // --- BUSCA E SUGESTÕES ---
+        const searchInput = document.getElementById('search');
+        searchInput.addEventListener('input', (e) => {
+            const val = e.target.value.toLowerCase();
+            highlightedIndex = -1;
+            document.getElementById('btn-search-clear').classList.toggle('visible', val.length > 0);
+            if (!val) { document.getElementById('suggestions').style.display = 'none'; return; }
+            
+            const matches = Array.from(new Set(busDataRaw.flatMap(v => [v.linha, v.prefixo])))
+                .filter(x => x && String(x).toLowerCase().includes(val))
+                .sort((a,b) => String(a).localeCompare(String(b), undefined, {numeric: true}))
+                .slice(0, 50);
+
+            document.getElementById('suggestions').innerHTML = matches.map((m, i) => `<div class="suggestion-item" data-index="${i}" onclick="selectSuggestion('${m}')">${m}</div>`).join('');
+            document.getElementById('suggestions').style.display = matches.length ? 'block' : 'none';
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+            const sugBox = document.getElementById('suggestions');
+            const items = sugBox.getElementsByClassName('suggestion-item');
+            if (e.key === 'ArrowDown') { e.preventDefault(); highlightedIndex = (highlightedIndex + 1) % items.length; updateHighlight(items); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); highlightedIndex = (highlightedIndex - 1 + items.length) % items.length; updateHighlight(items); }
+            else if (e.key === 'Enter') { e.preventDefault(); if (highlightedIndex > -1) items[highlightedIndex].click(); else if (items.length > 0) items[0].click(); }
+            else if (e.key === 'Escape') { limparBuscaInput(); }
+        });
+
+        function updateHighlight(items) {
+            Array.from(items).forEach((el, i) => {
+                el.classList.toggle('highlighted', i === highlightedIndex);
+                if (i === highlightedIndex) el.scrollIntoView({ block: 'nearest' });
+            });
+        }
+
+        function selectSuggestion(val) {
+            if (!termosBusca.includes(val)) {
+                termosBusca.push(val);
+                const tag = document.createElement('div');
+                tag.className = 'tag';
+                tag.innerHTML = `${val} <span onclick="removerTag(event, '${val}')">✕</span>`;
+                document.getElementById('search-tags').appendChild(tag);
+            }
+            limparBuscaInput();
+            render();
+        }
+
+        function removerTag(e, val) {
+            e.stopPropagation();
+            termosBusca = termosBusca.filter(t => t !== val);
+            const tags = document.getElementById('search-tags');
+            Array.from(tags.children).forEach(tag => { if (tag.textContent.includes(val)) tag.remove(); });
+            render();
+        }
+
+        function limparBuscaInput() {
+            searchInput.value = '';
+            document.getElementById('suggestions').style.display = 'none';
+            highlightedIndex = -1;
+            document.getElementById('btn-search-clear').classList.remove('visible');
+        }
+
+        // --- RENDERIZAÇÃO ---
+        async function fetchData() {
+            try {
+                const r = await fetch(API_URL);
+                const json = await r.json();
+                busDataRaw = json.veiculos;
+                render();
+            } catch (e) { console.error(e); }
+        }
+
+        function render() {
+            const sectors = Array.from(document.querySelectorAll('.chk-sector:checked')).map(c => c.value);
+            const showLine = document.getElementById('chk-com-linha').checked;
+            const showNoLine = document.getElementById('chk-sem-linha').checked;
+
+            const currentIds = new Set();
+
+            busDataRaw.forEach(v => {
+                const sector = getSector(v.prefixo);
+                const hasLine = v.linha && v.linha.trim() !== "";
+                
+                let matchesBusca = true;
+                if(termosBusca.length > 0) {
+                    matchesBusca = termosBusca.some(t => v.prefixo.includes(t) || v.linha.includes(t));
+                }
+
+                if (itemSelecionado && v.linha !== itemSelecionado.linha) return;
+                if (!matchesBusca || !sectors.includes(sector)) return;
+                if (hasLine && !showLine) return;
+                if (!hasLine && !showNoLine) return;
+
+                currentIds.add(v.prefixo);
+                const pos = [v.latitude, v.longitude];
+
+                if (markers[v.prefixo]) {
+                    markers[v.prefixo].setLatLng(pos);
+                    markers[v.prefixo].vData = v;
+                    if (markers[v.prefixo].isPopupOpen()) markers[v.prefixo].setPopupContent(createPopup(v));
+                } else {
+                    const icon = L.divIcon({
+                        className: '',
+                        html: `<div class="bus-marker-custom">${hasLine ? v.linha : v.prefixo}</div>`,
+                        iconSize: [0, 0]
+                    });
+                    const m = L.marker(pos, { icon }).addTo(map);
+                    m.vData = v;
+                    m.bindPopup(createPopup(v));
+                    
+                    // --- MUDANÇA: LÓGICA DE HOVER E CLIQUE ---
+                    
+                    // Hover: Apenas abre o Popup (Não ativa traçado)
+                    m.on('mouseover', function() {
+                        if(!itemSelecionado) this.openPopup();
+                    });
+
+                    // Clique: Trava seleção, isola linha e ativa traçado
+                    m.on('click', () => {
+                        itemSelecionado = v;
+                        drawRoute(v.linha, v.sentido);
+                        render(); 
+                    });
+
+                    markers[v.prefixo] = m;
+                }
+            });
+
+            for (let id in markers) {
+                if (!currentIds.has(id)) { map.removeLayer(markers[id]); delete markers[id]; }
+            }
+        }
+
+        function createPopup(v) {
+            return `
+                <div class="p-header">${v.linha ? 'Linha ' + v.linha : 'Sem Linha'}</div>
+                <div class="p-body">
+                    <div class="p-row"><span class="p-label">Prefixo</span><span class="p-val">${v.prefixo}</span></div>
+                    <div class="p-row"><span class="p-label">Sentido</span><span class="p-val">${v.sentido}</span></div>
+                    <div class="p-row"><span class="p-label">Data</span><span class="p-val">${v.data}</span></div>
+                    <div class="p-row"><span class="p-label">Hora</span><span class="p-val">${v.hora}</span></div>
+                    <div class="p-row"><span class="p-label">Status</span><span class="p-val" id="stat-${v.prefixo}">${getLiveStatus(v.data, v.hora)}</span></div>
+                    <div class="divider"></div>
+                    <div class="p-row"><span class="p-label">Data Prev.</span><span class="p-val">${v.dataProgramada || '--'}</span></div>
+                    <div class="p-row"><span class="p-label">Horário Prev.</span><span class="p-val">${v.horaProgramada || '--'}</span></div>
+                </div>
+            `;
+        }
+
+        async function drawRoute(linha, sentido) {
+            activePolylines.forEach(p => map.removeLayer(p));
+            activePolylines = [];
+            if (!dadosTracado || !linha) return;
+            const cands = (dadosTracado.tracados || dadosTracado).filter(t => String(t.linha) === String(linha));
+            const rota = cands.find(r => r.sentido === (sentido === "Ida" ? "I" : "V") || r.sentido === "CIRCULAR") || cands[0];
+            if (rota) {
+                activePolylines.push(L.polyline(rota.coordenadas, { color: 'black', weight: 8 }).addTo(map));
+                activePolylines.push(L.polyline(rota.coordenadas, { color: BSBUS_GREEN, weight: 4 }).addTo(map));
+            }
+        }
+
+        // Reset ao clicar no mapa (fora)
+        map.on('click', () => {
+            itemSelecionado = null;
+            activePolylines.forEach(p => map.removeLayer(p));
+            render();
+        });
+
+        // Ticker 1s
+        setInterval(() => {
+            for (let id in markers) {
+                const el = document.getElementById(`stat-${id}`);
+                if (el) el.innerText = getLiveStatus(markers[id].vData.data, markers[id].vData.hora);
+            }
+        }, 1000);
+
+        document.querySelectorAll('input[type=checkbox]').forEach(c => c.onchange = render);
+        fetch('json/tracado-geral.json').then(r => r.json()).then(d => dadosTracado = d);
+        fetchData();
+        setInterval(fetchData, 10000);
+    </script>
+</body>
+</html>
