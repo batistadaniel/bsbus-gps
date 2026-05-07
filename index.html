@@ -47,6 +47,16 @@
         .suggestion-item { padding: 12px 15px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 14px; transition: background 0.1s; }
         .suggestion-item.highlighted { background: rgba(37, 99, 235, 0.15); color: var(--primary); font-weight: 700; }
 
+        .tag {
+            cursor: pointer; /* Transforma o mouse em "mãozinha" na tag toda */
+            transition: background 0.2s;
+        }
+
+        .tag:hover {
+            background-color: #ff4d4d; /* Fica vermelha (ou outra cor) ao passar o mouse */
+            color: white;
+        }
+
         /* === UI STACK === */
         .leaflet-bottom.leaflet-right {
             display: flex; flex-direction: column; gap: 10px;
@@ -67,7 +77,7 @@
         .panel-title { font-size: 11px; font-weight: 800; color: var(--text-sec); text-transform: uppercase; margin-bottom: 10px; }
         .filter-item { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; margin-bottom: 6px; cursor: pointer; }
         .filter-item input { width: 18px; height: 18px; accent-color: var(--cor-bsbus); }
-        .divider { height: 1px; background: #eee; margin: 10px 0; }
+        .divider { height: 1px; background: #eee; margin: 8px 0; }
 
         /* === MARCADORES === */
         .bus-marker-custom {
@@ -79,17 +89,139 @@
 
         /* === POPUP === */
         .leaflet-popup-content-wrapper { background: white; border-radius: 14px; padding: 0; box-shadow: var(--shadow); }
-        .leaflet-popup-content { margin: 0 !important; width: 230px !important; }
+        .leaflet-popup-content { margin: 0 !important; width: 230px !important; text-align: center; }
         .p-header { 
             padding: 6px 10px; font-weight: 800; text-align: center; 
             background: #f1f5f9; border-top-left-radius: 14px; border-top-right-radius: 14px;
             border-bottom: 3px solid var(--cor-bsbus); font-size: 14px;
         }
         .p-body { padding: 10px 15px; font-size: 12px; }
-        .p-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .p-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
         .p-label { color: var(--text-sec); font-weight: 500; }
         .p-val { font-weight: 700; color: #000; text-align: right; }
+
+        /* ÍCONES DAS PARADAS NO MAPA */
+        .icon-map {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none; /* Garante que o mouse interaja com o marcador do Leaflet */
+        }
+
+        .placa-azul-map {
+            display: flex;
+            background-color: #385EA9;
+            width: 32px;
+            height: 37px;
+            justify-content: center;
+            align-items: center;
+            border-radius: 4px;
+            pointer-events: auto;
+        }
+
+        .borda-map {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ffffff;
+            border-radius: 2px;
+            height: 90%;
+            width: 90%;
+        }
+
+        .info-placa-map {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #ffffff;
+            width: 21px;
+            height: 19px;
+            margin-bottom: 5px;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 1px;
+            color: #000;
+            text-align: center;
+        }
+
+        .poste-map {
+            width: 4px;
+            height: 10px;
+            background-color: #000;
+        }
+
+        /* Estilo específico para o popup da parada */
+        .popup-parada .leaflet-popup-content {
+            width: auto !important; /* Libera a largura fixa de 230px */
+            min-width: 350px;       /* Define um tamanho mínimo confortável */
+            max-width: 350px;       /* Limite máximo para não ocupar a tela toda */
+            padding: 12px 40px !important;
+            text-align: center;
+            color: black !important;
+            font-weight: normal !important;
+        }
+
+        /* Remove margens extras que o Leaflet coloca por padrão */
+        .popup-parada .leaflet-popup-content-wrapper {
+            padding: 0;
+            border-radius: 10px;
+        }
+
+        /* Container no canto superior direito */
+        .toggle-stops-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-label {
+            font-family: sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        /* Estilo do Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 22px;
+        }
+
+        .switch input { display: none; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px; width: 16px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider { background-color: #4dff00; } /* Cor verde BSBUS */
+        input:checked + .slider:before { transform: translateX(18px); }
     </style>
+    
 </head>
 
 <body>
@@ -104,6 +236,13 @@
         </div>
         <div id="search-tags" class="search-tags"></div>
         <div id="suggestions" class="suggestions"></div>
+    </div>
+    <div class="toggle-stops-container">
+        <span class="toggle-label">Mostrar paradas:</span>
+        <label class="switch">
+            <input type="checkbox" id="chk-show-stops">
+            <span class="slider round"></span>
+        </label>
     </div>
 
     <div class="control-panel">
@@ -121,74 +260,146 @@
     </div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script>
-        const API_URL = "https://gps-bsbus.vercel.app/veiculos";
-        const BSBUS_GREEN = "#4dff00";
+<script>
+    const API_URL = "https://gps-bsbus.vercel.app/veiculos";
+    const BSBUS_GREEN = "#4dff00";
 
-        // === CONFIGURAÇÃO DE MAPAS E PERSISTÊNCIA ===
-        const savedLayer = localStorage.getItem('lastMapLayer') || "Ruas";
+    // 1. Carrega o estado salvo (se não houver nada, o padrão é true)
+    const savedStopsState = localStorage.getItem('showStops') !== 'false';
+    const chkStops = document.getElementById('chk-show-stops');
+    if (chkStops) {
+        chkStops.checked = savedStopsState;
 
-        const tiles = {
-            "Ruas": L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'),
-            "Híbrido": L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }),
-            "Padrão": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
-            "Satélite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}')
-        };
+        // 2. Salva a preferência e atualiza as paradas em tempo real
+        chkStops.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            localStorage.setItem('showStops', isChecked);
 
-        const map = L.map('map', { zoomControl: false }).setView([-15.7942, -47.8822], 12);
-        
-        // Aplica o mapa salvo ou o padrão
-        tiles[savedLayer].addTo(map);
-
-        L.control.layers(tiles, null, { position: 'bottomright' }).addTo(map);
-
-        // Listener para salvar a escolha do mapa
-        map.on('baselayerchange', (e) => {
-            localStorage.setItem('lastMapLayer', e.name);
+            if (!isChecked) {
+                // Se desmarcou: apenas remove os ícones das paradas
+                activeStops.forEach(s => map.removeLayer(s));
+                activeStops = [];
+            } else {
+                // Se marcou: desenha as paradas usando os dados que já temos na rotaAtiva
+                // Assim não precisamos rodar o drawRoute (que apaga e refaz a linha)
+                if (rotaAtiva && rotaAtiva.itinerarioCompleto) {
+                    renderStops(rotaAtiva.itinerarioCompleto);
+                }
+            }
         });
+    }
 
-        let markers = {};
-        let busDataRaw = [];
-        let activePolylines = [];
-        let dadosTracado = null;
-        let termosBusca = [];
-        let itemSelecionado = null;
-        let highlightedIndex = -1;
+    const savedLayer = localStorage.getItem('lastMapLayer') || "Padrão";
 
-        function parseDateBR(dataStr, horaStr) {
-            if(!dataStr) return new Date();
-            const p = dataStr.split('/');
-            return new Date(`${p[2]}-${p[1]}-${p[0]}T${horaStr}`);
+    const tiles = {
+        "Ruas": L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'),
+        "Híbrido": L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }),
+        "Padrão": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
+        "Satélite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}')
+    };
+
+    const map = L.map('map', { 
+        zoomControl: false,
+        closePopupOnClick: false 
+    }).setView([-15.7942, -47.8822], 12);
+    
+    tiles[savedLayer].addTo(map);
+    L.control.layers(tiles, null, { position: 'bottomright' }).addTo(map);
+
+    map.on('baselayerchange', (e) => {
+        localStorage.setItem('lastMapLayer', e.name);
+    });
+
+    let markers = {};
+    let busDataRaw = [];
+    let activePolylines = [];
+    let activeStops = []; 
+    let termosBusca = [];
+    let itemSelecionado = null;
+    let highlightedIndex = -1;
+    let rotaAtiva = null;
+    let travaPopup = null; // Vai guardar o prefixo do ônibus que deve ficar com popup fixo
+
+    // --- UTILITÁRIOS ---
+
+    function decodePolyline(encoded) {
+        if (!encoded) return [];
+        let poly = [];
+        let index = 0, len = encoded.length;
+        let lat = 0, lng = 0;
+        while (index < len) {
+            let b, shift = 0, result = 0;
+            do {
+                b = encoded.charCodeAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            let dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+            lat += dlat;
+            shift = 0; result = 0;
+            do {
+                b = encoded.charCodeAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            let dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+            lng += dlng;
+            poly.push([lat / 1e5, lng / 1e5]);
         }
+        return poly;
+    }
 
-        function getSector(prefixo) {
-            let pStr = String(prefixo);
-            let core = 0;
-            if (pStr.startsWith('50')) core = parseInt(pStr.substring(2, pStr.length - 1));
-            else if (pStr.startsWith('71')) core = parseInt(pStr.substring(1, pStr.length - 1));
+    function parseDateBR(dataStr, horaStr) {
+        if(!dataStr) return new Date();
+        const p = dataStr.split('/');
+        return new Date(`${p[2]}-${p[1]}-${p[0]}T${horaStr}`);
+    }
 
-            if ((core >= 1 && core <= 33) || (core >= 1079 && core <= 1092) || (core >= 1101 && core <= 1129)) return "Brazlandia";
-            if ((core >= 1033 && core <= 1078) || (core >= 1093 && core <= 1100) || (core >= 206 && core <= 346) || (core >= 492 && core <= 506)) return "Setor O";
-            if ((core >= 385 && core <= 459) || (core >= 460 && core <= 471)) return "Recanto";
-            if ((core >= 34 && core <= 205) || (core >= 472 && core <= 491)) return "QNQ";
-            if ((core >= 347 && core <= 384) || (core >= 1130 && core <= 1132)) return "Sof Sul";
-            return "Outro";
-        }
+    function getSector(prefixo) {
+        let pStr = String(prefixo);
+        let core = 0;
+        if (pStr.startsWith('50')) core = parseInt(pStr.substring(2, pStr.length - 1));
+        else if (pStr.startsWith('71')) core = parseInt(pStr.substring(1, pStr.length - 1));
+        if ((core >= 1 && core <= 33) || (core >= 1079 && core <= 1092) || (core >= 1101 && core <= 1129)) return "Brazlandia";
+        if ((core >= 1033 && core <= 1078) || (core >= 1093 && core <= 1100) || (core >= 206 && core <= 346) || (core >= 492 && core <= 506)) return "Setor O";
+        if ((core >= 385 && core <= 459) || (core >= 460 && core <= 471)) return "Recanto";
+        if ((core >= 34 && core <= 205) || (core >= 472 && core <= 491)) return "QNQ";
+        if ((core >= 347 && core <= 384) || (core >= 1130 && core <= 1132)) return "Sof Sul";
+        return "Outro";
+    }
 
-        function getLiveStatus(dataStr, horaStr) {
-            const last = parseDateBR(dataStr, horaStr);
-            const now = new Date();
-            let diff = Math.floor((now - last) / 1000);
-            if (diff < 0) diff = 0;
-            const dd = Math.floor(diff / 86400), hh = Math.floor((diff % 86400) / 3600), mm = Math.floor((diff % 3600) / 60), ss = diff % 60;
-            if (dd > 0) return `${dd}d ${hh}h ${mm}m ${ss}s atrás`;
-            if (hh > 0) return `${hh}h ${mm}m ${ss}s atrás`;
-            if (mm > 0) return `${mm}min ${ss}seg atrás`;
-            return `${ss} seg atrás`;
-        }
+    function getLiveStatus(dataStr, horaStr) {
+        const last = parseDateBR(dataStr, horaStr);
+        const now = new Date();
+        let diff = Math.floor((now - last) / 1000);
+        if (diff < 0) diff = 0;
+        const dd = Math.floor(diff / 86400), hh = Math.floor((diff % 86400) / 3600), mm = Math.floor((diff % 3600) / 60), ss = diff % 60;
+        if (dd > 0) return `${dd}d ${hh}h ${mm}m ${ss}s atrás`;
+        if (hh > 0) return `${hh}h ${mm}m ${ss}s atrás`;
+        if (mm > 0) return `${mm}min ${ss}seg atrás`;
+        return `${ss} seg atrás`;
+    }
 
-        // --- BUSCA E SUGESTÕES ---
-        const searchInput = document.getElementById('search');
+    function createStopIcon(numero) {
+        return L.divIcon({
+            className: '',
+            html: `
+                <div class="icon-map" style="pointer-events: auto;">
+                    <div class="placa-azul-map">
+                        <div class="borda-map">
+                            <div class="info-placa-map">${numero}</div>
+                        </div>
+                    </div>
+                    <div class="poste-map"></div>
+                </div>
+            `,
+            iconSize: [32, 47],
+            iconAnchor: [16, 47],
+            popupAnchor: [0, -40]
+        });
+    }
+
+    const searchInput = document.getElementById('search');
         searchInput.addEventListener('input', (e) => {
             const val = e.target.value.toLowerCase();
             highlightedIndex = -1;
@@ -198,7 +409,7 @@
             const matches = Array.from(new Set(busDataRaw.flatMap(v => [v.linha, v.prefixo])))
                 .filter(x => x && String(x).toLowerCase().includes(val))
                 .sort((a,b) => String(a).localeCompare(String(b), undefined, {numeric: true}))
-                .slice(0, 50);
+                .slice(0, 610);
 
             document.getElementById('suggestions').innerHTML = matches.map((m, i) => `<div class="suggestion-item" data-index="${i}" onclick="selectSuggestion('${m}')">${m}</div>`).join('');
             document.getElementById('suggestions').style.display = matches.length ? 'block' : 'none';
@@ -225,7 +436,9 @@
                 termosBusca.push(val);
                 const tag = document.createElement('div');
                 tag.className = 'tag';
-                tag.innerHTML = `${val} <span onclick="removerTag(event, '${val}')">✕</span>`;
+                // Agora o onclick está na div principal
+                tag.onclick = (event) => removerTag(event, val);
+                tag.innerHTML = `${val} <span>✕</span>`;
                 document.getElementById('search-tags').appendChild(tag);
             }
             limparBuscaInput();
@@ -233,10 +446,15 @@
         }
 
         function removerTag(e, val) {
-            e.stopPropagation();
+            // Não precisamos mais de stopPropagation aqui, pois a tag toda é o botão
             termosBusca = termosBusca.filter(t => t !== val);
             const tags = document.getElementById('search-tags');
-            Array.from(tags.children).forEach(tag => { if (tag.textContent.includes(val)) tag.remove(); });
+            
+            // Remove o elemento visual da tag
+            Array.from(tags.children).forEach(tag => { 
+                if (tag.textContent.includes(val)) tag.remove(); 
+            });
+            
             render();
         }
 
@@ -247,124 +465,225 @@
             document.getElementById('btn-search-clear').classList.remove('visible');
         }
 
-        // --- RENDERIZAÇÃO ---
-        async function fetchData() {
-            try {
-                const r = await fetch(API_URL);
-                const json = await r.json();
-                busDataRaw = json.veiculos;
-                render();
-            } catch (e) { console.error(e); }
-        }
-
-        function render() {
-            const sectors = Array.from(document.querySelectorAll('.chk-sector:checked')).map(c => c.value);
-            const showLine = document.getElementById('chk-com-linha').checked;
-            const showNoLine = document.getElementById('chk-sem-linha').checked;
-
-            const currentIds = new Set();
-
-            busDataRaw.forEach(v => {
-                const sector = getSector(v.prefixo);
-                const hasLine = v.linha && v.linha.trim() !== "";
-                
-                let matchesBusca = true;
-                if(termosBusca.length > 0) {
-                    matchesBusca = termosBusca.some(t => v.prefixo.includes(t) || v.linha.includes(t));
-                }
-
-                if (itemSelecionado && v.linha !== itemSelecionado.linha) return;
-                if (!matchesBusca || !sectors.includes(sector)) return;
-                if (hasLine && !showLine) return;
-                if (!hasLine && !showNoLine) return;
-
-                currentIds.add(v.prefixo);
-                const pos = [v.latitude, v.longitude];
-
-                if (markers[v.prefixo]) {
-                    markers[v.prefixo].setLatLng(pos);
-                    markers[v.prefixo].vData = v;
-                    if (markers[v.prefixo].isPopupOpen()) markers[v.prefixo].setPopupContent(createPopup(v));
-                } else {
-                    const icon = L.divIcon({
-                        className: '',
-                        html: `<div class="bus-marker-custom">${hasLine ? v.linha : v.prefixo}</div>`,
-                        iconSize: [0, 0]
-                    });
-                    const m = L.marker(pos, { icon }).addTo(map);
-                    m.vData = v;
-                    m.bindPopup(createPopup(v));
-                    
-                    // --- MUDANÇA: LÓGICA DE HOVER E CLIQUE ---
-                    
-                    // Hover: Apenas abre o Popup (Não ativa traçado)
-                    m.on('mouseover', function() {
-                        if(!itemSelecionado) this.openPopup();
-                    });
-
-                    // Clique: Trava seleção, isola linha e ativa traçado
-                    m.on('click', () => {
-                        itemSelecionado = v;
-                        drawRoute(v.linha, v.sentido);
-                        render(); 
-                    });
-
-                    markers[v.prefixo] = m;
-                }
-            });
-
-            for (let id in markers) {
-                if (!currentIds.has(id)) { map.removeLayer(markers[id]); delete markers[id]; }
-            }
-        }
-
-        function createPopup(v) {
-            return `
-                <div class="p-header">${v.linha ? 'Linha ' + v.linha : 'Sem Linha'}</div>
-                <div class="p-body">
-                    <div class="p-row"><span class="p-label">Prefixo</span><span class="p-val">${v.prefixo}</span></div>
-                    <div class="p-row"><span class="p-label">Sentido</span><span class="p-val">${v.sentido}</span></div>
-                    <div class="p-row"><span class="p-label">Data</span><span class="p-val">${v.data}</span></div>
-                    <div class="p-row"><span class="p-label">Hora</span><span class="p-val">${v.hora}</span></div>
-                    <div class="p-row"><span class="p-label">Status</span><span class="p-val" id="stat-${v.prefixo}">${getLiveStatus(v.data, v.hora)}</span></div>
-                    <div class="divider"></div>
-                    <div class="p-row"><span class="p-label">Data Prev.</span><span class="p-val">${v.dataProgramada || '--'}</span></div>
-                    <div class="p-row"><span class="p-label">Horário Prev.</span><span class="p-val">${v.horaProgramada || '--'}</span></div>
-                </div>
-            `;
-        }
-
-        async function drawRoute(linha, sentido) {
-            activePolylines.forEach(p => map.removeLayer(p));
-            activePolylines = [];
-            if (!dadosTracado || !linha) return;
-            const cands = (dadosTracado.tracados || dadosTracado).filter(t => String(t.linha) === String(linha));
-            const rota = cands.find(r => r.sentido === (sentido === "Ida" ? "I" : "V") || r.sentido === "CIRCULAR") || cands[0];
-            if (rota) {
-                activePolylines.push(L.polyline(rota.coordenadas, { color: 'black', weight: 8 }).addTo(map));
-                activePolylines.push(L.polyline(rota.coordenadas, { color: BSBUS_GREEN, weight: 4 }).addTo(map));
-            }
-        }
-
-        // Reset ao clicar no mapa (fora)
-        map.on('click', () => {
-            itemSelecionado = null;
-            activePolylines.forEach(p => map.removeLayer(p));
+    async function fetchData() {
+        try {
+            const r = await fetch(API_URL);
+            const json = await r.json();
+            busDataRaw = json.veiculos;
             render();
+        } catch (e) { console.error(e); }
+    }
+
+    function render() {
+        const sectors = Array.from(document.querySelectorAll('.chk-sector:checked')).map(c => c.value);
+        const showLine = document.getElementById('chk-com-linha').checked;
+        const showNoLine = document.getElementById('chk-sem-linha').checked;
+        const currentIds = new Set();
+
+        busDataRaw.forEach(v => {
+            const sector = getSector(v.prefixo);
+            const hasLine = v.linha && v.linha.trim() !== "";
+            let matchesBusca = true;
+            if(termosBusca.length > 0) {
+                matchesBusca = termosBusca.some(t => v.prefixo.includes(t) || v.linha.includes(t));
+            }
+
+            // MANTÉM O FILTRO: Se clicou, mostra apenas os daquela linha
+            if (itemSelecionado && v.linha !== itemSelecionado.linha) return;
+            if (!matchesBusca || !sectors.includes(sector)) return;
+            if (hasLine && !showLine) return;
+            if (!hasLine && !showNoLine) return;
+
+            currentIds.add(v.prefixo);
+            const pos = [v.latitude, v.longitude];
+
+            if (markers[v.prefixo]) {
+                markers[v.prefixo].setLatLng(pos);
+                markers[v.prefixo].vData = v;
+                if (markers[v.prefixo].isPopupOpen()) {
+                    markers[v.prefixo].setPopupContent(createPopup(v));
+                }
+            } else {
+                const icon = L.divIcon({
+                    className: '',
+                    html: `<div class="bus-marker-custom">${hasLine ? v.linha : v.prefixo}</div>`,
+                    iconSize: [0, 0]
+                });
+                
+                const m = L.marker(pos, { 
+                    icon,
+                    zIndexOffset: 2000 
+                }).addTo(map);
+
+                m.vData = v;
+
+                const popup = L.popup({ autoClose: false, closeOnClick: false }).setContent(createPopup(v));
+                m.bindPopup(popup);
+                
+                m.on('mouseover', function() { 
+                    this.openPopup(); 
+                });
+
+                m.on('mouseout', function() {
+                    // SÓ FICA ABERTO SE O PREFIXO ESTIVER TRAVADO
+                    if (travaPopup !== v.prefixo) {
+                        this.closePopup();
+                    }
+                });
+
+                m.on('click', () => {
+                    // Se clicar em outro, destrava o anterior
+                    if (travaPopup && markers[travaPopup]) {
+                        markers[travaPopup].closePopup();
+                    }
+                    
+                    itemSelecionado = v; // Mantém o filtro da linha
+                    travaPopup = v.prefixo; // Trava o popup deste ônibus
+                    drawRoute(v.linha, v.sentido);
+                    render(); 
+                    m.openPopup(); 
+                });
+
+                // AQUI ESTÁ O SEGREDO:
+                m.on('popupclose', function() {
+                    // Quando o popup fecha, tiramos apenas a trava.
+                    // O itemSelecionado continua ativo, então a rota e o filtro NÃO somem.
+                    if (travaPopup === v.prefixo) {
+                        travaPopup = null;
+                    }
+                });
+
+                markers[v.prefixo] = m;
+            }
         });
 
-        // Ticker 1s
-        setInterval(() => {
-            for (let id in markers) {
-                const el = document.getElementById(`stat-${id}`);
-                if (el) el.innerText = getLiveStatus(markers[id].vData.data, markers[id].vData.hora);
+        for (let id in markers) {
+            if (!currentIds.has(id)) { 
+                map.removeLayer(markers[id]); 
+                delete markers[id]; 
             }
-        }, 1000);
+        }
+    }
 
-        document.querySelectorAll('input[type=checkbox]').forEach(c => c.onchange = render);
-        fetch('json/tracado-geral.json').then(r => r.json()).then(d => dadosTracado = d);
-        fetchData();
-        setInterval(fetchData, 10000);
-    </script>
+    function createPopup(v) {
+        return `
+            <div class="p-header">${v.linha ? 'Linha ' + v.linha : 'Sem Linha'}</div>
+            <div class="p-body">
+                <div class="p-row"><span class="p-label">Prefixo</span><span class="p-val">${v.prefixo}</span></div>
+                <div class="p-row"><span class="p-label">Sentido</span><span class="p-val">${v.sentido}</span></div>
+                <div class="p-row"><span class="p-label">Data</span><span class="p-val">${v.data}</span></div>
+                <div class="p-row"><span class="p-label">Hora</span><span class="p-val">${v.hora}</span></div>
+                <div class="p-row"><span class="p-label">Status</span><span class="p-val" id="stat-${v.prefixo}">${getLiveStatus(v.data, v.hora)}</span></div>
+                <div class="divider"></div>
+                <div class="p-row"><span class="p-label">Data Prev.</span><span class="p-val">${v.dataProgramada || '--'}</span></div>
+                <div class="p-row"><span class="p-label">Horário Prev.</span><span class="p-val">${v.horaProgramada || '--'}</span></div>
+            </div>
+        `;
+    }
+
+    function renderStops(itinerario) {
+        // Limpa paradas antigas antes de desenhar as novas (prevenção)
+        activeStops.forEach(s => map.removeLayer(s));
+        activeStops = [];
+
+        if (itinerario.stops) {
+            itinerario.stops.forEach((stop, idx) => {
+                const sMarker = L.marker([stop.lat, stop.lng], { 
+                    icon: createStopIcon(idx + 1),
+                    zIndexOffset: 500 
+                }).addTo(map);
+                
+                sMarker.bindPopup(`<b>Parada ${idx + 1} |</b> ${stop.name}`, {
+                    className: 'popup-parada', 
+                    minWidth: 200,
+                    maxWidth: 450,
+                    closeButton: true,
+                    autoPan: false 
+                });
+                
+                // Reutiliza sua lógica de hover/cópia
+                sMarker.on('mouseover', function(e) {
+                    const marker = e.target;
+                    marker.openPopup();
+                    const popupElement = marker.getPopup().getElement();
+                    if (popupElement) {
+                        popupElement.addEventListener('mouseleave', () => marker.closePopup());
+                    }
+                });
+
+                sMarker.on('mouseout', function(e) {
+                    const marker = e.target;
+                    setTimeout(() => {
+                        const container = marker.getPopup().getElement();
+                        if (container && !container.matches(':hover')) marker.closePopup();
+                    }, 50); 
+                });
+
+                activeStops.push(sMarker);
+            });
+        }
+    }
+
+    async function drawRoute(linha, sentido) {
+    if (!linha) return;
+    if (rotaAtiva && rotaAtiva.linha === linha && rotaAtiva.sentido === sentido) return;
+
+    activePolylines.forEach(p => map.removeLayer(p));
+    activeStops.forEach(s => map.removeLayer(s));
+    activePolylines = [];
+    activeStops = [];
+
+    try {
+        const response = await fetch(`https://gps-bsbus.vercel.app/itinerario/${linha}`);
+        const data = await response.json();
+        const targetDirection = (sentido === "Ida") ? 0 : 1;
+        const itinerario = data.itinerarios.find(i => i.directionId === targetDirection) || data.itinerarios[0];
+
+        if (itinerario) {
+            // Guardamos o itinerário inteiro para poder re-gerar as paradas depois
+            rotaAtiva = { linha, sentido, itinerarioCompleto: itinerario };
+
+            setTimeout(() => {
+                // Desenha o Shape (Linha)
+                if (itinerario.shape) {
+                    const coords = decodePolyline(itinerario.shape);
+                    activePolylines.push(L.polyline(coords, { color: 'black', weight: 8 }).addTo(map));
+                    activePolylines.push(L.polyline(coords, { color: BSBUS_GREEN, weight: 4 }).addTo(map));
+                }
+
+                // Desenha as paradas somente se o toggle estiver ligado
+                if (document.getElementById('chk-show-stops').checked) {
+                    renderStops(itinerario);
+                }
+            }, 1000);
+        }
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+    map.on('click', () => {
+        itemSelecionado = null;
+        rotaAtiva = null;
+        activePolylines.forEach(p => map.removeLayer(p));
+        activeStops.forEach(s => map.removeLayer(s));
+        activePolylines = []; 
+        activeStops = [];
+        map.closePopup();
+        render();
+    });
+
+    setInterval(() => {
+        for (let id in markers) {
+            const el = document.getElementById(`stat-${id}`);
+            if (el) el.innerText = getLiveStatus(markers[id].vData.data, markers[id].vData.hora);
+        }
+    }, 1000);
+
+    document.querySelectorAll('input[type=checkbox]').forEach(c => c.onchange = render);
+    
+    fetchData();
+    setInterval(fetchData, 10000);
+</script>
 </body>
 </html>
