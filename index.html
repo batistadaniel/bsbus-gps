@@ -13,6 +13,7 @@
         :root {
             --primary: #2563eb;
             --cor-bsbus: #4dff00;
+            --cor-prefixo-7: #e1b74b;
             --surface: rgba(255, 255, 255, 0.95);
             --surface-solid: #ffffff;
             --text-main: #1e293b;
@@ -40,291 +41,453 @@
         .search-clear { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; background: rgba(128,128,128,0.2); border-radius: 50%; display: none; justify-content: center; align-items: center; cursor: pointer; color: var(--text-sec); font-size: 12px; font-weight: 800; }
         .search-clear.visible { display: flex; }
 
-        .search-tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
-        .tag { background: var(--text-main); color: var(--surface-solid); font-size: 11px; padding: 4px 10px; border-radius: 20px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px; }
-        
+        .search-tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-height: 70px; overflow-y: auto; }
+        .tag { background: var(--text-main); color: var(--surface-solid); font-size: 11px; padding: 4px 10px; border-radius: 20px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px; transition: background 0.2s; }
+        .tag:hover { background-color: #ff4d4d; color: white; }
+
         .suggestions { background: var(--surface-solid); margin-top: 5px; border-radius: 12px; max-height: 45vh; overflow-y: auto; display: none; box-shadow: var(--shadow); color: var(--text-main); width: 100%; }
-        .suggestion-item { padding: 12px 15px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 14px; transition: background 0.1s; }
-        .suggestion-item.highlighted { background: rgba(37, 99, 235, 0.15); color: var(--primary); font-weight: 700; }
+        .suggestion-item { padding: 12px 15px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 14px; transition: background 0.1s; display: flex; justify-content: space-between; }
+        .suggestion-item.highlighted, .suggestion-item:hover { background: rgba(37, 99, 235, 0.15); color: var(--primary); font-weight: 700; }
 
-        .tag {
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .tag:hover {
-            background-color: #ff4d4d;
-            color: white;
-        }
-
-        /* === UI STACK === */
-        .leaflet-bottom.leaflet-right {
-            display: flex; flex-direction: column; gap: 10px;
-            bottom: 320px !important; margin-right: 15px !important;
-            z-index: 1001;
+        /* === CONTROLE DE CAMADAS === */
+        .leaflet-bottom.leaflet-left {
+            bottom: max(20px, env(safe-area-inset-bottom)) !important;
+            left: 15px !important;
+            z-index: 1000;
         }
         .leaflet-control-layers {
             border-radius: 12px !important; box-shadow: var(--shadow) !important;
             background: var(--surface) !important; border: 1px solid rgba(0,0,0,0.1) !important;
         }
 
-        /* === PAINEL DE SETORES === */
-        .control-panel {
-            position: absolute; bottom: 30px; right: 15px; width: 240px; 
-            background: white; padding: 15px; border-radius: 16px; 
-            box-shadow: var(--shadow); border: 1px solid var(--border); z-index: 1000;
+        /* === EMPILHAMENTO DE FILTROS APLICADOS === */
+        .applied-filters-stack {
+            position: absolute; right: 15px; bottom: 80px; z-index: 999;
+            display: flex; flex-direction: column; align-items: flex-end; gap: 5px;
+            max-height: calc(100vh - 200px); overflow-y: auto; pointer-events: none;
         }
-        .panel-title { font-size: 11px; font-weight: 800; color: var(--text-sec); text-transform: uppercase; margin-bottom: 10px; }
-        .filter-item { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; margin-bottom: 6px; cursor: pointer; }
-        .filter-item input { width: 18px; height: 18px; accent-color: var(--cor-bsbus); }
-        .divider { height: 1px; background: #eee; margin: 8px 0; }
+        .applied-tag {
+            pointer-events: auto; background: #0f172a; color: #fff;
+            font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 10px;
+            display: flex; align-items: center; gap: 6px; box-shadow: var(--shadow);
+            cursor: pointer; transition: background-color 0.2s;
+        }
+        .applied-tag:hover { background: #ef4444; }
 
-        /* === MARCADORES === */
+        /* === BOTÃO DE FILTROS === */
+        .btn-filter-toggle {
+            position: absolute; bottom: max(20px, env(safe-area-inset-bottom)); right: 15px; z-index: 1000;
+            background: #0f172a; color: white; border: none; padding: 10px 16px;
+            border-radius: 24px; font-weight: 700; font-size: 13px; display: flex;
+            align-items: center; gap: 6px; box-shadow: var(--shadow); cursor: pointer;
+        }
+        .btn-filter-toggle:hover { background: #1e293b; }
+
+        /* === PAINEL DE CONTROLE === */
+        .control-panel {
+            position: absolute; bottom: max(70px, env(safe-area-inset-bottom)); right: 15px; width: 440px; 
+            max-height: calc(100vh - 140px); background: white; padding: 16px; border-radius: 16px; 
+            box-shadow: var(--shadow); border: 1px solid var(--border); z-index: 1001;
+            display: none; flex-direction: column; gap: 10px; overflow-y: auto;
+        }
+        .control-panel.open { display: flex; }
+
+        .control-panel::-webkit-scrollbar,
+        .suggestions::-webkit-scrollbar,
+        .applied-filters-stack::-webkit-scrollbar { width: 5px; }
+        .control-panel::-webkit-scrollbar-thumb,
+        .suggestions::-webkit-scrollbar-thumb,
+        .applied-filters-stack::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.4); border-radius: 10px; }
+        .control-panel::-webkit-scrollbar-track,
+        .suggestions::-webkit-scrollbar-track,
+        .applied-filters-stack::-webkit-scrollbar-track { background: transparent; }
+
+        .panel-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; }
+        .panel-title { font-size: 12px; font-weight: 800; color: var(--text-sec); text-transform: uppercase; }
+        .panel-close { cursor: pointer; font-weight: 800; font-size: 15px; color: var(--text-sec); padding: 4px; }
+        
+        /* BOTÕES TODOS / NENHUM */
+        .filter-section-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
+        }
+        .btn-action-group {
+            display: inline-flex; gap: 4px; background: #e2e8f0; padding: 2px; border-radius: 6px;
+        }
+        .btn-action-chip {
+            background: white; border: none; font-size: 10px; font-weight: 700; color: var(--text-main);
+            cursor: pointer; padding: 2px 7px; border-radius: 4px; transition: all 0.15s ease-in-out;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .btn-action-chip:hover { background: #0f172a; color: white; }
+        .btn-action-chip:active { transform: scale(0.95); }
+
+        /* Layout em grade lado a lado */
+        .sectors-layout-table {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+            background: #f8fafc; padding: 10px; border-radius: 10px; border: 1px solid #e2e8f0;
+        }
+        .sectors-column-title {
+            font-size: 11px; font-weight: 800; color: #0f172a; text-transform: uppercase;
+        }
+        .filter-list { display: flex; flex-direction: column; gap: 4px; }
+        .filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+        .filter-item { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text-main); }
+        .filter-item input { width: 16px; height: 16px; accent-color: var(--cor-bsbus); cursor: pointer; }
+        .divider { height: 1px; background: #eee; margin: 4px 0; }
+
+        /* === BADGES DOS VEÍCULOS === */
+        .bus-marker-wrapper { position: relative; width: 0; height: 0; }
         .bus-marker-custom {
             background: var(--cor-bsbus); border: 2px solid #000; color: #000;
             font-weight: 900; font-size: 11px; padding: 2px 6px; border-radius: 6px;
             white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-            position: absolute; transform: translate(-50%, -50%); display: block;
+            position: absolute; transform: translate(-50%, -50%); display: inline-block; text-align: center;
         }
+        .bus-marker-custom.p7 { background: var(--cor-prefixo-7) !important; }
 
         /* === POPUP === */
-        .leaflet-popup-content-wrapper { background: white; border-radius: 14px; padding: 0; box-shadow: var(--shadow); }
-        .leaflet-popup-content { margin: 0 !important; width: 230px !important; text-align: center; }
+        .leaflet-popup-content-wrapper { background: white; border-radius: 14px; padding: 0; box-shadow: var(--shadow); overflow: hidden; }
+        .leaflet-popup-content { margin: 0 !important; width: 235px !important; text-align: center; }
         .p-header { 
             padding: 6px 10px; font-weight: 800; text-align: center; 
             background: #f1f5f9; border-top-left-radius: 14px; border-top-right-radius: 14px;
-            border-bottom: 3px solid var(--cor-bsbus); font-size: 14px;
+            border-bottom: 3px solid var(--cor-bsbus); font-size: 14px; color: var(--text-main);
         }
+        .p-header.p7 { border-bottom: 3px solid var(--cor-prefixo-7) !important; }
         .p-body { padding: 10px 15px; font-size: 12px; }
         .p-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
-        .p-label { color: var(--text-sec); font-weight: 500; }
+        .p-label { color: var(--text-sec); font-weight: 500; text-align: left; }
         .p-val { font-weight: 700; color: #000; text-align: right; }
 
-        /* ÍCONES DAS PARADAS NO MAPA */
-        .icon-map {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            pointer-events: none;
-        }
+        /* PARADAS */
+        .icon-map { display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+        .placa-azul-map { display: flex; background-color: #385EA9; width: 32px; height: 37px; justify-content: center; align-items: center; border-radius: 4px; pointer-events: auto; }
+        .borda-map { display: flex; align-items: center; justify-content: center; border: 1px solid #ffffff; border-radius: 2px; height: 90%; width: 90%; }
+        .info-placa-map { display: flex; align-items: center; justify-content: center; background-color: #ffffff; width: 21px; height: 19px; margin-bottom: 5px; font-size: 11px; font-weight: bold; border-radius: 1px; color: #000; text-align: center; }
+        .poste-map { width: 4px; height: 10px; background-color: #000; }
+        .popup-parada .leaflet-popup-content { width: auto !important; min-width: 220px; max-width: 350px; padding: 10px 18px !important; text-align: center; color: black !important; font-weight: normal !important; }
 
-        .placa-azul-map {
-            display: flex;
-            background-color: #385EA9;
-            width: 32px;
-            height: 37px;
-            justify-content: center;
-            align-items: center;
-            border-radius: 4px;
-            pointer-events: auto;
-        }
-
-        .borda-map {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid #ffffff;
-            border-radius: 2px;
-            height: 90%;
-            width: 90%;
-        }
-
-        .info-placa-map {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #ffffff;
-            width: 21px;
-            height: 19px;
-            margin-bottom: 5px;
-            font-size: 11px;
-            font-weight: bold;
-            border-radius: 1px;
-            color: #000;
-            text-align: center;
-        }
-
-        .poste-map {
-            width: 4px;
-            height: 10px;
-            background-color: #000;
-        }
-
-        /* Estilo específico para o popup da parada */
-        .popup-parada .leaflet-popup-content {
-            width: auto !important;
-            min-width: 350px;
-            max-width: 350px;
-            padding: 12px 40px !important;
-            text-align: center;
-            color: black !important;
-            font-weight: normal !important;
-        }
-
-        .popup-parada .leaflet-popup-content-wrapper {
-            padding: 0;
-            border-radius: 10px;
-        }
-
-        /* Container no canto superior direito */
+        /* TOGGLE PARADAS */
         .toggle-stops-container {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
-            background: white;
-            padding: 10px 15px;
-            border-radius: 25px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            position: absolute; top: max(10px, env(safe-area-inset-top)); right: 15px;
+            z-index: 1000; background: white; padding: 9px 14px; border-radius: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 8px;
         }
-
-        .toggle-label {
-            font-family: sans-serif;
-            font-size: 14px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        /* Estilo do Switch */
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 40px;
-            height: 22px;
-        }
-
+        .toggle-label { font-size: 13px; font-weight: 600; color: #333; }
+        .switch { position: relative; display: inline-block; width: 38px; height: 20px; }
         .switch input { display: none; }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 34px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 16px; width: 16px;
-            left: 3px; bottom: 3px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-
-        input:checked + .slider { background-color: #4dff00; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--cor-bsbus); }
         input:checked + .slider:before { transform: translateX(18px); }
+
+        @media (max-width: 500px) {
+            .control-panel { width: calc(100% - 30px); }
+            .sectors-layout-table { grid-template-columns: 1fr; }
+            .toggle-stops-container { padding: 6px 10px; }
+            .toggle-label { font-size: 11px; }
+        }
     </style>
-    
 </head>
 
 <body>
 
     <div id="map"></div>
 
+    <!-- Barra de Busca -->
     <div class="top-bar">
         <div class="glass-panel search-container">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--text-sec)"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input type="text" id="search" placeholder="Linha ou prefixo..." autocomplete="off" inputmode="numeric">
+            <input type="text" id="search" placeholder="Linha ou prefixo..." autocomplete="off">
             <div class="search-clear" id="btn-search-clear" onclick="limparBuscaInput()">✕</div>
         </div>
         <div id="search-tags" class="search-tags"></div>
         <div id="suggestions" class="suggestions"></div>
     </div>
+
+    <!-- Switch Paradas -->
     <div class="toggle-stops-container">
         <span class="toggle-label">Mostrar paradas:</span>
         <label class="switch">
             <input type="checkbox" id="chk-show-stops">
-            <span class="slider round"></span>
+            <span class="slider"></span>
         </label>
     </div>
 
-    <div class="control-panel">
-        <div class="panel-title">Setores Operacionais</div>
-        <div id="sector-filters">
-            <label class="filter-item"><input type="checkbox" class="chk-sector" value="Brazlandia" checked> Brazlândia</label>
-            <label class="filter-item"><input type="checkbox" class="chk-sector" value="Setor O" checked> Setor "O"</label>
-            <label class="filter-item"><input type="checkbox" class="chk-sector" value="Recanto" checked> Recanto</label>
-            <label class="filter-item"><input type="checkbox" class="chk-sector" value="QNQ" checked> QNQ/QNR</label>
-            <label class="filter-item"><input type="checkbox" class="chk-sector" value="Sof Sul" checked> Sof Sul</label>
+    <!-- Stack de Filtros Aplicados (Setores e Modelos) -->
+    <div class="applied-filters-stack" id="applied-filters-stack"></div>
+
+    <!-- Botão Flutuante de Filtros -->
+    <button class="btn-filter-toggle" id="btn-toggle-filters">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+        Filtros e Setores
+    </button>
+
+    <!-- Painel de Filtros -->
+    <div class="control-panel" id="control-panel">
+        <div class="panel-header">
+            <span class="panel-title">Filtros Operacionais</span>
+            <span class="panel-close" id="btn-close-panel">✕</span>
         </div>
+
+        <!-- Tabela Lado a Lado: Manutenção x Operação -->
+        <div class="sectors-layout-table">
+            <div>
+                <div class="filter-section-header">
+                    <span class="sectors-column-title">Garagens</span>
+                    <div class="btn-action-group">
+                        <button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-manutencao', true)">Todos</button>
+                        <button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-manutencao', false)">Nenhum</button>
+                    </div>
+                </div>
+                <div class="filter-list" id="filters-manutencao">
+                    <label class="filter-item"><input type="checkbox" class="chk-manutencao" value="Brazlândia" checked> Brazlândia</label>
+                    <label class="filter-item"><input type="checkbox" class="chk-manutencao" value="Pinheiros" checked> Pinheiros</label>
+                    <label class="filter-item"><input type="checkbox" class="chk-manutencao" value="QNR" checked> QNR</label>
+                    <label class="filter-item"><input type="checkbox" class="chk-manutencao" value="Setor O" checked> Setor O</label>
+                    <label class="filter-item"><input type="checkbox" class="chk-manutencao" value="Guará" checked> Guará</label>
+                    <label class="filter-item"><input type="checkbox" class="chk-manutencao" value="Recanto das Emas" checked> Recanto</label>
+                </div>
+            </div>
+
+            <div>
+                <div class="filter-section-header">
+                    <span class="sectors-column-title">Operação</span>
+                    <div class="btn-action-group">
+                        <button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-operacao', true)">Todos</button>
+                        <button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-operacao', false)">Nenhum</button>
+                    </div>
+                </div>
+                <div class="filter-list" id="filters-operacao">
+                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="Brazlândia" checked> Brazlândia</label>
+                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="Pinheiros" checked> Pinheiros</label>
+                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="Estrutural" checked> Estrutural</label>
+                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="QNR" checked> QNR</label>
+                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="M Norte" checked> M Norte</label>
+                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="Setor O" checked> Setor O</label>
+                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="Guará" checked> Guará</label>
+                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="Riacho Fundo" checked> Riacho Fundo</label>
+                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="Samambaia" checked> Samambaia</label>
+                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="Recanto das Emas" checked> Recanto</label>
+                    <label class="filter-item" style="color: #b91c1c;"><input type="checkbox" class="chk-operacao" value="Reserva" checked> <b>Reserva</b></label>
+                </div>
+            </div>
+        </div>
+
         <div class="divider"></div>
-        <label class="filter-item"><input type="checkbox" id="chk-com-linha" checked> Com Linha</label>
-        <label class="filter-item"><input type="checkbox" id="chk-sem-linha" checked> Sem Linha</label>
-        <label class="filter-item"><input type="checkbox" id="chk-transferencia" checked> Transferência</label>
-        <label class="filter-item"><input type="checkbox" id="chk-VNR" checked> VNR</label>
+
+        <div class="filter-section-header">
+            <span class="panel-title">Modelos de Ônibus</span>
+            <div class="btn-action-group">
+                <button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-modelo', true)">Todos</button>
+                <button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-modelo', false)">Nenhum</button>
+            </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+            <label class="filter-item"><input type="checkbox" class="chk-modelo" value="Básico (3 portas)" checked> Básico (3 portas)</label>
+            <label class="filter-item"><input type="checkbox" class="chk-modelo" value="Básico Porta Esquerda (4 portas)" checked> Básico P. Esquerda (4 portas)</label>
+            <label class="filter-item"><input type="checkbox" class="chk-modelo" value="Antigo Básico (3 portas)" checked> Antigo Básico (3 portas)</label>
+            <label class="filter-item"><input type="checkbox" class="chk-modelo" value="Antigo Básico Porta Esquerda (4 portas)" checked> Antigo P. Esquerda (4 portas)</label>
+            <label class="filter-item"><input type="checkbox" class="chk-modelo" value="MINI (Zebrinha)" checked> MINI (Zebrinha)</label>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="filter-section-header">
+            <span class="panel-title">Status Operacional</span>
+            <div class="btn-action-group">
+                <button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-status', true)">Todos</button>
+                <button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-status', false)">Nenhum</button>
+            </div>
+        </div>
+        <div class="filter-grid">
+            <label class="filter-item"><input type="checkbox" class="chk-status" id="chk-com-linha" checked> Com Linha</label>
+            <label class="filter-item"><input type="checkbox" class="chk-status" id="chk-sem-linha" checked> Sem Linha</label>
+            <label class="filter-item"><input type="checkbox" class="chk-status" id="chk-transferencia" checked> Transf.</label>
+            <label class="filter-item"><input type="checkbox" class="chk-status" id="chk-VNR" checked> VNR</label>
+        </div>
     </div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
         const API_URL = "https://gps-bsbus.vercel.app/veiculos";
         const BSBUS_GREEN = "#4dff00";
+        const BSBUS_GOLD = "#e1b74b";
+
+        const TODAS_LINHAS_EMPRESA = [
+            "0.005", "0.038", "0.039", "0.041", "0.047", "0.049", "0.053", "0.092", "0.159", "0.310",
+            "0.311", "0.312", "0.313", "0.322", "0.323", "0.324", "0.330", "0.331", "0.332", "0.333",
+            "0.334", "0.335", "0.338", "0.341", "0.343", "0.346", "0.348", "0.350", "0.353", "0.360",
+            "0.362", "0.364", "0.368", "0.370", "0.371", "0.372", "0.374", "0.375", "0.377", "0.379",
+            "0.382", "0.385", "0.393", "0.397", "0.400", "0.401", "0.402", "0.403", "0.404", "0.405",
+            "0.406", "0.410", "0.411", "0.413", "0.414", "0.415", "0.416", "0.420", "0.421", "0.423",
+            "0.424", "0.450", "0.551", "0.553", "0.556", "0.557", "0.558", "0.805", "0.808", "0.812",
+            "0.818", "0.841", "0.842", "0.844", "0.845", "0.873", "0.876", "0.878", "0.883", "0.886",
+            "0.906", "0.907", "0.911", "0.913", "0.918", "0.920", "0.921", "0.926", "0.927", "0.928",
+            "0.929", "0.930", "0.934", "0.946", "0.949", "0.953", "0.956", "0.957", "0.958", "0.960",
+            "0.962", "0.963", "0.965", "0.966", "084.1", "086.1", "154.7", "157.5", "157.8", "157.9",
+            "158.2", "158.4", "158.5", "158.6", "158.8", "313.1", "313.2", "322.1", "322.2", "323.1",
+            "323.2", "324.1", "332.1", "333.1", "333.2", "333.6", "333.7", "333.8", "333.9", "334.4",
+            "335.1", "338.1", "343.2", "346.1", "348.1", "350.1", "359.1", "359.2", "364.1", "364.2",
+            "364.3", "364.4", "364.5", "364.7", "368.1", "372.2", "372.3", "372.9", "374.1", "374.2",
+            "379.1", "379.2", "382.1", "384.1", "389.1", "393.4", "397.2", "398.1", "398.3", "400.2",
+            "401.1", "401.5", "402.5", "402.7", "406.1", "409.1", "411.1", "411.2", "413.2", "413.4",
+            "414.1", "416.1", "416.2", "416.3", "423.1", "557.1", "805.3", "808.1", "808.5", "812.1",
+            "812.2", "818.1", "844.3", "845.2", "872.1", "872.3", "920.4", "926.1", "928.1", "928.2",
+            "928.3", "929.1", "929.2", "929.3", "929.4", "929.5", "949.1", "963.1", "965.1", "965.2"
+        ];
 
         const itinerarioCache = new Map();
 
-        const savedStopsState = localStorage.getItem('showStops') !== 'false';
+        // Paradas (autoPan false)
+        const savedStopsState = localStorage.getItem('showStops') === 'true';
         const chkStops = document.getElementById('chk-show-stops');
         if (chkStops) {
             chkStops.checked = savedStopsState;
-
             chkStops.addEventListener('change', (e) => {
-                const isChecked = e.target.checked;
-                localStorage.setItem('showStops', isChecked);
-
-                if (!isChecked) {
-                    activeStops.forEach(s => map.removeLayer(s));
-                    activeStops = [];
-                } else {
-                    if (rotaAtiva && rotaAtiva.itinerarioCompleto) {
-                        renderStops(rotaAtiva.itinerarioCompleto);
-                    }
-                }
+                localStorage.setItem('showStops', e.target.checked);
+                triggerRenderLines();
             });
         }
 
+        // Camadas
         const savedLayer = localStorage.getItem('lastMapLayer') || "Padrão";
-
         const tiles = {
-            "Ruas": L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'),
-            "Híbrido": L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }),
             "Padrão": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
+            "Híbrido": L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }),
             "Satélite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}')
         };
 
         const map = L.map('map', { 
-            zoomControl: false,
-            closePopupOnClick: false 
+            zoomControl: false, 
+            closePopupOnClick: false,
+            doubleClickZoom: false
         }).setView([-15.7942, -47.8822], 12);
         
-        tiles[savedLayer].addTo(map);
-        L.control.layers(tiles, null, { position: 'bottomright' }).addTo(map);
+        (tiles[savedLayer] || tiles["Padrão"]).addTo(map);
+        L.control.layers(tiles, null, { position: 'bottomleft' }).addTo(map);
+        map.on('baselayerchange', (e) => localStorage.setItem('lastMapLayer', e.name));
 
-        map.on('baselayerchange', (e) => {
-            localStorage.setItem('lastMapLayer', e.name);
+        // Drawer
+        const controlPanel = document.getElementById('control-panel');
+        const btnToggleFilters = document.getElementById('btn-toggle-filters');
+        const btnClosePanel = document.getElementById('btn-close-panel');
+
+        btnToggleFilters.addEventListener('click', (e) => {
+            e.stopPropagation();
+            controlPanel.classList.toggle('open');
         });
+        btnClosePanel.addEventListener('click', () => controlPanel.classList.remove('open'));
+        controlPanel.addEventListener('click', (e) => e.stopPropagation());
 
         let markers = {};
         let busDataRaw = [];
-        let activePolylines = [];
+        let activeRouteLayers = [];
         let activeStops = []; 
         let termosBusca = [];
         let itemSelecionado = null;
         let highlightedIndex = -1;
-        let rotaAtiva = null;
-        let travaPopup = null; 
+        let currentOpenPopup = null;
+        let renderLinesToken = 0;
+        let debounceRenderTimer = null;
 
-        // --- UTILITÁRIOS ---
+        // ==========================================
+        // MARCAR / DESMARCAR GRUPOS
+        // ==========================================
+        function setGroupCheckboxes(selector, checked) {
+            document.querySelectorAll(selector).forEach(c => c.checked = checked);
+            render();
+            triggerRenderLines();
+            updateAppliedFiltersBadgeStack();
+        }
+
+        // ==========================================
+        // CORE E ESPECIFICAÇÕES
+        // ==========================================
+        function getVehicleCore(prefixo) {
+            if (!prefixo) return null;
+            const pStr = String(prefixo).trim();
+            if (pStr.toUpperCase() === "VNR") return "VNR";
+
+            if (pStr.startsWith('7') && pStr.length >= 6) {
+                return parseInt(pStr.substring(1, pStr.length - 1), 10);
+            }
+            if (pStr.startsWith('50') && pStr.length >= 5) {
+                return parseInt(pStr.substring(2, pStr.length - 1), 10);
+            }
+
+            const numOnly = parseInt(pStr.replace(/\D/g, ''), 10);
+            return isNaN(numOnly) ? null : numOnly;
+        }
+
+        function getVehicleSpecs(prefixo) {
+            const core = getVehicleCore(prefixo);
+
+            if (core === "VNR") {
+                return { modelo: "Veículo Não Regular", manutencao: "Outro", operacao: "Reserva", core: "VNR" };
+            }
+            if (core === null) {
+                return { modelo: "Indefinido", manutencao: "Outro", operacao: "Outro", core: "--" };
+            }
+
+            // Básico (3 portas)
+            if (core >= 1 && core <= 33) return { modelo: "Básico (3 portas)", manutencao: "Brazlândia", operacao: "Brazlândia", core };
+            if (core >= 34 && core <= 56) return { modelo: "Básico (3 portas)", manutencao: "Pinheiros", operacao: "Pinheiros", core };
+            if (core >= 57 && core <= 65) return { modelo: "Básico (3 portas)", manutencao: "Pinheiros", operacao: "Estrutural", core };
+            if (core >= 66 && core <= 69) return { modelo: "Básico (3 portas)", manutencao: "Pinheiros", operacao: "Reserva", core };
+            if (core >= 70 && core <= 194) return { modelo: "Básico (3 portas)", manutencao: "QNR", operacao: "QNR", core };
+            if (core >= 195 && core <= 205) return { modelo: "Básico (3 portas)", manutencao: "QNR", operacao: "Reserva", core };
+            if (core >= 206 && core <= 232) return { modelo: "Básico (3 portas)", manutencao: "Setor O", operacao: "M Norte", core };
+            if (core >= 233 && core <= 333) return { modelo: "Básico (3 portas)", manutencao: "Setor O", operacao: "Setor O", core };
+            if (core === 334) return { modelo: "Básico (3 portas)", manutencao: "Setor O", operacao: "Recanto das Emas", core };
+            if (core === 335) return { modelo: "Básico (3 portas)", manutencao: "Setor O", operacao: "Riacho Fundo", core };
+            if (core >= 336 && core <= 346) return { modelo: "Básico (3 portas)", manutencao: "Setor O", operacao: "Reserva", core };
+            if (core >= 347 && core <= 353) return { modelo: "Básico (3 portas)", manutencao: "Guará", operacao: "Guará", core };
+            if (core >= 354 && core <= 382) return { modelo: "Básico (3 portas)", manutencao: "Guará", operacao: "Estrutural", core };
+            if (core >= 383 && core <= 384) return { modelo: "Básico (3 portas)", manutencao: "Guará", operacao: "Reserva", core };
+
+            // Recanto das Emas (Básico 3 portas)
+            const riachoFundo = [385, 386, 413, 420, 421, 423, 425, 430];
+            const samambaia = [387, 388, 389, 390, 391, 392, 393, 394, 396, 422, 431, 435, 436, 437, 439, 443, 444, 449];
+            if (core >= 385 && core <= 459) {
+                if (core >= 453 && core <= 459) return { modelo: "Básico (3 portas)", manutencao: "Recanto das Emas", operacao: "Reserva", core };
+                if (riachoFundo.includes(core)) return { modelo: "Básico (3 portas)", manutencao: "Recanto das Emas", operacao: "Riacho Fundo", core };
+                if (samambaia.includes(core)) return { modelo: "Básico (3 portas)", manutencao: "Recanto das Emas", operacao: "Samambaia", core };
+                return { modelo: "Básico (3 portas)", manutencao: "Recanto das Emas", operacao: "Recanto das Emas", core };
+            }
+
+            // Básico Porta Esquerda (4 portas)
+            if (core === 460) return { modelo: "Básico Porta Esquerda (4 portas)", manutencao: "Recanto das Emas", operacao: "Recanto das Emas", core };
+            if (core >= 461 && core <= 469) return { modelo: "Básico Porta Esquerda (4 portas)", manutencao: "Recanto das Emas", operacao: "Samambaia", core };
+            if (core >= 470 && core <= 471) return { modelo: "Básico Porta Esquerda (4 portas)", manutencao: "Recanto das Emas", operacao: "Reserva", core };
+            if (core >= 472 && core <= 488) return { modelo: "Básico Porta Esquerda (4 portas)", manutencao: "QNR", operacao: "QNR", core };
+            if (core >= 489 && core <= 491) return { modelo: "Básico Porta Esquerda (4 portas)", manutencao: "QNR", operacao: "Reserva", core };
+            if (core >= 492 && core <= 502) return { modelo: "Básico Porta Esquerda (4 portas)", manutencao: "Setor O", operacao: "M Norte", core };
+            if (core >= 503 && core <= 506) return { modelo: "Básico Porta Esquerda (4 portas)", manutencao: "Setor O", operacao: "Reserva", core };
+
+            // Antigo Básico Porta Esquerda (4 portas)
+            if (core >= 1033 && core <= 1067) return { modelo: "Antigo Básico Porta Esquerda (4 portas)", manutencao: "Setor O", operacao: "Setor O", core };
+            if (core >= 1068 && core <= 1071) return { modelo: "Antigo Básico Porta Esquerda (4 portas)", manutencao: "Setor O", operacao: "Reserva", core };
+            if (core >= 1072 && core <= 1080) return { modelo: "Antigo Básico Porta Esquerda (4 portas)", manutencao: "Brazlândia", operacao: "Reserva", core };
+            if (core >= 1081 && core <= 1092) return { modelo: "Antigo Básico Porta Esquerda (4 portas)", manutencao: "Brazlândia", operacao: "Brazlândia", core };
+
+            // Antigo Básico (3 portas)
+            if (core === 1093 || (core >= 1095 && core <= 1097)) return { modelo: "Antigo Básico (3 portas)", manutencao: "Setor O", operacao: "Estrutural", core };
+            if (core === 1094) return { modelo: "Antigo Básico (3 portas)", manutencao: "Setor O", operacao: "Setor O", core };
+            if (core >= 1098 && core <= 1100) return { modelo: "Antigo Básico (3 portas)", manutencao: "Setor O", operacao: "Reserva", core };
+            if (core === 1101) return { modelo: "Antigo Básico (3 portas)", manutencao: "Brazlândia", operacao: "Reserva", core };
+            if (core >= 1102 && core <= 1129) return { modelo: "Antigo Básico (3 portas)", manutencao: "Brazlândia", operacao: "Brazlândia", core };
+
+            // MINI (Zebrinha)
+            if (core >= 1130 && core <= 1131) return { modelo: "MINI (Zebrinha)", manutencao: "Guará", operacao: "Estrutural", core };
+            if (core === 1132) return { modelo: "MINI (Zebrinha)", manutencao: "Guará", operacao: "Reserva", core };
+
+            return { modelo: "Outro", manutencao: "Outro", operacao: "Outro", core };
+        }
 
         function decodePolyline(encoded) {
             if (!encoded) return [];
-            let poly = [];
-            let index = 0, len = encoded.length;
-            let lat = 0, lng = 0;
+            let poly = [], index = 0, len = encoded.length, lat = 0, lng = 0;
             while (index < len) {
                 let b, shift = 0, result = 0;
                 do {
@@ -351,21 +514,6 @@
             if(!dataStr) return new Date();
             const p = dataStr.split('/');
             return new Date(`${p[2]}-${p[1]}-${p[0]}T${horaStr}`);
-        }
-
-        function getSector(prefixo) {
-            let pStr = String(prefixo).trim();
-            if (pStr === "VNR") return "VNR";
-
-            let core = 0;
-            if (pStr.startsWith('50')) core = parseInt(pStr.substring(2, pStr.length - 1));
-            else if (pStr.startsWith('71')) core = parseInt(pStr.substring(1, pStr.length - 1));
-            if ((core >= 1 && core <= 33) || (core >= 1072 && core <= 1092) || (core >= 1101 && core <= 1129)) return "Brazlandia";
-            if ((core >= 1033 && core <= 1071) || (core >= 1093 && core <= 1100) || (core >= 206 && core <= 346) || (core >= 492 && core <= 506)) return "Setor O";
-            if ((core >= 385 && core <= 459) || (core >= 460 && core <= 471)) return "Recanto";
-            if ((core >= 34 && core <= 205) || (core >= 472 && core <= 491)) return "QNQ";
-            if ((core >= 347 && core <= 384) || (core >= 1130 && core <= 1132)) return "Sof Sul";
-            return "Outro";
         }
 
         function getLiveStatus(dataStr, horaStr) {
@@ -399,19 +547,27 @@
             });
         }
 
+        // ==========================================
+        // BUSCA
+        // ==========================================
         const searchInput = document.getElementById('search');
         searchInput.addEventListener('input', (e) => {
-            const val = e.target.value.toLowerCase();
+            const val = e.target.value.toLowerCase().trim();
             highlightedIndex = -1;
             document.getElementById('btn-search-clear').classList.toggle('visible', val.length > 0);
             if (!val) { document.getElementById('suggestions').style.display = 'none'; return; }
             
-            const matches = Array.from(new Set(busDataRaw.flatMap(v => [v.linha, v.prefixo])))
+            const liveTerms = busDataRaw.flatMap(v => [v.linha, v.prefixo]);
+            const matches = Array.from(new Set([...TODAS_LINHAS_EMPRESA, ...liveTerms]))
                 .filter(x => x && String(x).toLowerCase().includes(val))
                 .sort((a,b) => String(a).localeCompare(String(b), undefined, {numeric: true}))
-                .slice(0, 610);
+                .slice(0, 30);
 
-            document.getElementById('suggestions').innerHTML = matches.map((m, i) => `<div class="suggestion-item" data-index="${i}" onclick="selectSuggestion('${m}')">${m}</div>`).join('');
+            document.getElementById('suggestions').innerHTML = matches.map((m, i) => `
+                <div class="suggestion-item" data-index="${i}" onclick="selectSuggestion('${m}')">
+                    <span>${m}</span>
+                </div>
+            `).join('');
             document.getElementById('suggestions').style.display = matches.length ? 'block' : 'none';
         });
 
@@ -420,7 +576,11 @@
             const items = sugBox.getElementsByClassName('suggestion-item');
             if (e.key === 'ArrowDown') { e.preventDefault(); highlightedIndex = (highlightedIndex + 1) % items.length; updateHighlight(items); }
             else if (e.key === 'ArrowUp') { e.preventDefault(); highlightedIndex = (highlightedIndex - 1 + items.length) % items.length; updateHighlight(items); }
-            else if (e.key === 'Enter') { e.preventDefault(); if (highlightedIndex > -1) items[highlightedIndex].click(); else if (items.length > 0) items[0].click(); }
+            else if (e.key === 'Enter') { 
+                e.preventDefault(); 
+                if (highlightedIndex > -1 && items[highlightedIndex]) items[highlightedIndex].click(); 
+                else if (items.length > 0) items[0].click(); 
+            }
             else if (e.key === 'Escape') { limparBuscaInput(); }
         });
 
@@ -442,15 +602,20 @@
             }
             limparBuscaInput();
             render();
+            triggerRenderLines();
+            updateAppliedFiltersBadgeStack();
         }
 
         function removerTag(e, val) {
+            if (e) e.stopPropagation();
             termosBusca = termosBusca.filter(t => t !== val);
             const tags = document.getElementById('search-tags');
             Array.from(tags.children).forEach(tag => { 
                 if (tag.textContent.includes(val)) tag.remove(); 
             });
             render();
+            triggerRenderLines();
+            updateAppliedFiltersBadgeStack();
         }
 
         function limparBuscaInput() {
@@ -460,39 +625,176 @@
             document.getElementById('btn-search-clear').classList.remove('visible');
         }
 
+        // ==========================================
+        // TRAÇADOS SEGUROS
+        // ==========================================
+        async function fetchItinerarioData(linha) {
+            if (!linha || linha === "0.001") return null;
+            if (itinerarioCache.has(linha)) return itinerarioCache.get(linha);
+
+            try {
+                const res = await fetch(`https://gps-bsbus.vercel.app/itinerario/${linha}`);
+                const data = await res.json();
+                if (data && data.itinerarios) {
+                    itinerarioCache.set(linha, data);
+                    return data;
+                }
+            } catch (err) {
+                console.error(`Erro no itinerario da linha ${linha}:`, err);
+            }
+            return null;
+        }
+
+        function clearRouteLayers() {
+            activeRouteLayers.forEach(l => map.removeLayer(l));
+            activeRouteLayers = [];
+            activeStops.forEach(s => map.removeLayer(s));
+            activeStops = [];
+        }
+
+        function triggerRenderLines() {
+            clearTimeout(debounceRenderTimer);
+            debounceRenderTimer = setTimeout(renderLines, 100);
+        }
+
+        async function renderLines() {
+            const thisToken = ++renderLinesToken;
+            clearRouteLayers();
+
+            const showStops = document.getElementById('chk-show-stops').checked;
+
+            // 1. Veículo selecionado por clique no Badge: Plota o traçado do veículo
+            if (itemSelecionado && itemSelecionado.linha) {
+                const data = await fetchItinerarioData(itemSelecionado.linha);
+                if (thisToken !== renderLinesToken || !data || !data.itinerarios) return;
+
+                const isVolta = String(itemSelecionado.sentido).toLowerCase().includes('volta');
+                const targetDirection = isVolta ? 1 : 0;
+                const itin = data.itinerarios.find(i => i.directionId === targetDirection) || data.itinerarios[0];
+
+                if (itin && itin.shape) {
+                    const coords = decodePolyline(itin.shape);
+                    const b = L.polyline(coords, { color: '#000000', weight: 8, opacity: 1.0, interactive: false }).addTo(map);
+                    const r = L.polyline(coords, { color: BSBUS_GREEN, weight: 4, opacity: 1.0, interactive: false }).addTo(map);
+                    activeRouteLayers.push(b, r);
+
+                    if (showStops && itin.stops) {
+                        itin.stops.forEach((stop, idx) => {
+                            const sMarker = L.marker([stop.lat, stop.lng], { icon: createStopIcon(idx + 1), zIndexOffset: 500 });
+                            sMarker.bindPopup(`<b>Parada ${idx + 1} | Linha ${itemSelecionado.linha}</b><br>${stop.name}`, { className: 'popup-parada', minWidth: 200, maxWidth: 350, autoPan: false });
+                            sMarker.on('mouseover', (e) => e.target.openPopup());
+                            sMarker.on('mouseout', (e) => e.target.closePopup());
+                            sMarker.addTo(map);
+                            activeStops.push(sMarker);
+                        });
+                    }
+                }
+                return;
+            }
+
+            // 2. Busca Ativa: Plota o traçado SOMENTE se houver exatamente 1 linha pesquisada
+            if (termosBusca.length !== 1) {
+                return;
+            }
+
+            const t = termosBusca[0];
+            let linhaParaPlotar = null;
+
+            const matchOficial = TODAS_LINHAS_EMPRESA.find(l => l === t || l.includes(t));
+            if (matchOficial) {
+                linhaParaPlotar = matchOficial;
+            } else {
+                const matchLive = busDataRaw.find(v => v.linha && v.linha.includes(t));
+                if (matchLive) linhaParaPlotar = matchLive.linha;
+            }
+
+            if (!linhaParaPlotar) return;
+
+            const data = await fetchItinerarioData(linhaParaPlotar);
+            if (thisToken !== renderLinesToken || !data || !data.itinerarios) return;
+
+            data.itinerarios.forEach(itin => {
+                if (itin.shape) {
+                    const coords = decodePolyline(itin.shape);
+                    const b = L.polyline(coords, { color: '#000000', weight: 6, opacity: 1.0, interactive: false }).addTo(map);
+                    const r = L.polyline(coords, { 
+                        color: itin.directionId === 0 ? BSBUS_GREEN : '#38bdf8', 
+                        weight: 3.5, 
+                        opacity: 1.0,
+                        interactive: false 
+                    }).addTo(map);
+                    activeRouteLayers.push(b, r);
+                }
+
+                if (showStops && itin.stops) {
+                    itin.stops.forEach((stop, idx) => {
+                        const sMarker = L.marker([stop.lat, stop.lng], { icon: createStopIcon(idx + 1), zIndexOffset: 500 });
+                        sMarker.bindPopup(`<b>Parada ${idx + 1} | Linha ${linhaParaPlotar}</b><br>${stop.name}`, { className: 'popup-parada', minWidth: 200, maxWidth: 350, autoPan: false });
+                        sMarker.on('mouseover', (e) => e.target.openPopup());
+                        sMarker.on('mouseout', (e) => e.target.closePopup());
+                        sMarker.addTo(map);
+                        activeStops.push(sMarker);
+                    });
+                }
+            });
+        }
+
+        // ==========================================
+        // DADOS E FILTRAGEM INTELIGENTE
+        // ==========================================
         async function fetchData() {
             try {
                 const r = await fetch(API_URL);
                 const json = await r.json();
-                busDataRaw = json.veiculos;
+                busDataRaw = json.veiculos || [];
                 render();
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("Erro ao buscar dados:", e); }
         }
 
         function render() {
-            const sectors = Array.from(document.querySelectorAll('.chk-sector:checked')).map(c => c.value);
+            const checkedManutencao = Array.from(document.querySelectorAll('.chk-manutencao:checked')).map(c => c.value);
+            const checkedOperacao = Array.from(document.querySelectorAll('.chk-operacao:checked')).map(c => c.value);
+            const checkedModelos = Array.from(document.querySelectorAll('.chk-modelo:checked')).map(c => c.value);
+
             const showLine = document.getElementById('chk-com-linha').checked;
             const showNoLine = document.getElementById('chk-sem-linha').checked;
             const showTransfer = document.getElementById('chk-transferencia').checked;
             const showVNR = document.getElementById('chk-VNR').checked;
             const currentIds = new Set();
 
+            const hasManutFilter = checkedManutencao.length > 0;
+            const hasOpFilter = checkedOperacao.length > 0;
+            const hasModelFilter = checkedModelos.length > 0;
+
             busDataRaw.forEach(v => {
-                const sector = getSector(v.prefixo);
+                const specs = getVehicleSpecs(v.prefixo);
                 const isTransfer = String(v.linha).trim() === "0.001";
-                const isVNR = String(v.prefixo).trim() === "VNR";
+                const isVNR = String(v.prefixo).trim() === "VNR" || specs.core === "VNR";
                 const hasLine = v.linha && v.linha.trim() !== "" && !isTransfer;
 
-                let matchesBusca = true;
-                if(termosBusca.length > 0) {
-                    matchesBusca = termosBusca.some(t => v.prefixo.includes(t) || (v.linha && v.linha.includes(t)));
+                // Foco em linha de veículo clicado
+                if (itemSelecionado) {
+                    if (itemSelecionado.linha && v.linha !== itemSelecionado.linha) return;
+                    if (!itemSelecionado.linha && v.prefixo !== itemSelecionado.prefixo) return;
                 }
 
-                if (itemSelecionado && v.prefixo !== itemSelecionado.prefixo && v.linha !== itemSelecionado.linha) return;
-                
-                if (!isVNR && !sectors.includes(sector)) return;
-                if (!matchesBusca) return;
+                // Filtragem tolerante e combinada
+                if (!isVNR) {
+                    if (hasManutFilter && !checkedManutencao.includes(specs.manutencao)) return;
+                    if (hasOpFilter && !checkedOperacao.includes(specs.operacao)) return;
+                    if (hasModelFilter && !checkedModelos.includes(specs.modelo)) return;
+                }
 
+                // Busca por texto
+                if (termosBusca.length > 0) {
+                    const match = termosBusca.some(t => 
+                        (v.prefixo && v.prefixo.includes(t)) || 
+                        (v.linha && v.linha.includes(t))
+                    );
+                    if (!match) return;
+                }
+
+                // Status Operacional
                 if (isTransfer && !showTransfer) return;
                 if (isVNR && !showVNR) return;
                 if (hasLine && !showLine) return;
@@ -502,55 +804,61 @@
 
                 currentIds.add(v.prefixo);
                 const pos = [v.latitude, v.longitude];
+                const startsWith7 = String(v.prefixo).trim().startsWith('7');
 
                 if (markers[v.prefixo]) {
                     markers[v.prefixo].setLatLng(pos);
                     markers[v.prefixo].vData = v;
+                    markers[v.prefixo].specs = specs;
                     if (markers[v.prefixo].isPopupOpen()) {
-                        markers[v.prefixo].setPopupContent(createPopup(v));
+                        markers[v.prefixo].setPopupContent(createPopup(v, specs));
                     }
                 } else {
                     const icon = L.divIcon({
                         className: '',
-                        html: `<div class="bus-marker-custom">${v.linha && v.linha.trim() !== "" ? v.linha : v.prefixo}</div>`,
+                        html: `<div class="bus-marker-wrapper"><div class="bus-marker-custom ${startsWith7 ? 'p7' : ''}">${v.linha && v.linha.trim() !== "" ? v.linha : v.prefixo}</div></div>`,
                         iconSize: [0, 0]
                     });
                     
-                    const m = L.marker(pos, { 
-                        icon,
-                        zIndexOffset: 2000 
-                    }).addTo(map);
-
+                    const m = L.marker(pos, { icon, zIndexOffset: 2000 }).addTo(map);
                     m.vData = v;
+                    m.specs = specs;
 
-                    const popup = L.popup({ autoClose: false, closeOnClick: false }).setContent(createPopup(v));
+                    // autoPan: false impede que o mapa pule ou se mova ao abrir o popup
+                    const popup = L.popup({ autoClose: false, closeOnClick: false, autoPan: false }).setContent(createPopup(v, specs));
                     m.bindPopup(popup);
                     
-                    m.on('mouseover', function() { 
-                        this.openPopup(); 
+                    m.on('mouseover', function() {
+                        if (!itemSelecionado) {
+                            this.openPopup();
+                        }
                     });
 
                     m.on('mouseout', function() {
-                        if (travaPopup !== v.prefixo) {
+                        if (!itemSelecionado || itemSelecionado.prefixo !== v.prefixo) {
                             this.closePopup();
                         }
                     });
 
-                    m.on('click', () => {
-                        if (travaPopup && markers[travaPopup]) {
-                            markers[travaPopup].closePopup();
+                    // Clique no Badge: fecha popup anterior e abre APENAS o último clicado sem mover o mapa
+                    m.on('click', (e) => {
+                        L.DomEvent.stopPropagation(e);
+
+                        if (currentOpenPopup && currentOpenPopup.isOpen()) {
+                            map.closePopup(currentOpenPopup);
                         }
-                        
-                        itemSelecionado = v; 
-                        travaPopup = v.prefixo; 
-                        drawRoute(v.linha, v.sentido);
-                        render(); 
-                        m.openPopup(); 
+
+                        itemSelecionado = v;
+                        render();
+                        triggerRenderLines();
+
+                        m.openPopup();
+                        currentOpenPopup = m.getPopup();
                     });
 
                     m.on('popupclose', function() {
-                        if (travaPopup === v.prefixo) {
-                            travaPopup = null;
+                        if (currentOpenPopup === m.getPopup()) {
+                            currentOpenPopup = null;
                         }
                     });
 
@@ -566,7 +874,11 @@
             }
         }
 
-        function createPopup(v) {
+        // ==========================================
+        // POPUP
+        // ==========================================
+        function createPopup(v, specs) {
+            const isP7 = String(v.prefixo).trim().startsWith('7');
             let headerText = 'Sem Linha';
             if (String(v.linha).trim() === "0.001") {
                 headerText = 'TRANSFERÊNCIA';
@@ -577,12 +889,15 @@
             }
 
             return `
-                <div class="p-header">${headerText}</div>
+                <div class="p-header ${isP7 ? 'p7' : ''}">${headerText}</div>
                 <div class="p-body">
                     <div class="p-row"><span class="p-label">Prefixo</span><span class="p-val">${v.prefixo}</span></div>
-                    <div class="p-row"><span class="p-label">Sentido</span><span class="p-val">${v.sentido}</span></div>
-                    <div class="p-row"><span class="p-label">Data</span><span class="p-val">${v.data}</span></div>
-                    <div class="p-row"><span class="p-label">Hora</span><span class="p-val">${v.hora}</span></div>
+                    <div class="p-row"><span class="p-label">Modelo</span><span class="p-val">${specs.modelo}</span></div>
+                    <div class="p-row"><span class="p-label">Manutenção</span><span class="p-val">${specs.manutencao}</span></div>
+                    <div class="p-row"><span class="p-label">Operação</span><span class="p-val">${specs.operacao}</span></div>
+                    <div class="p-row"><span class="p-label">Sentido</span><span class="p-val">${v.sentido || '--'}</span></div>
+                    <div class="p-row"><span class="p-label">Data</span><span class="p-val">${v.data || '--'}</span></div>
+                    <div class="p-row"><span class="p-label">Hora</span><span class="p-val">${v.hora || '--'}</span></div>
                     <div class="p-row"><span class="p-label">Status</span><span class="p-val" id="stat-${v.prefixo}">${getLiveStatus(v.data, v.hora)}</span></div>
                     <div class="divider"></div>
                     <div class="p-row"><span class="p-label">Data Prev.</span><span class="p-val">${v.dataProgramada || '--'}</span></div>
@@ -591,119 +906,107 @@
             `;
         }
 
-        function renderStops(itinerario) {
-            activeStops.forEach(s => map.removeLayer(s));
-            activeStops = [];
+        // ==========================================
+        // EMPILHAMENTO DOS FILTROS APLICADOS (SEM PREFIXO/LINHA)
+        // ==========================================
+        function updateAppliedFiltersBadgeStack() {
+            const stack = document.getElementById('applied-filters-stack');
+            stack.innerHTML = '';
 
-            if (itinerario && itinerario.stops) {
-                const batchStops = [];
-                
-                itinerario.stops.forEach((stop, idx) => {
-                    const sMarker = L.marker([stop.lat, stop.lng], { 
-                        icon: createStopIcon(idx + 1),
-                        zIndexOffset: 500 
-                    });
-                    
-                    sMarker.bindPopup(`<b>Parada ${idx + 1} |</b> ${stop.name}`, {
-                        className: 'popup-parada', 
-                        minWidth: 200,
-                        maxWidth: 450,
-                        closeButton: true,
-                        autoPan: false 
-                    });
-                    
-                    sMarker.on('mouseover', function(e) {
-                        const marker = e.target;
-                        marker.openPopup();
-                        const popupElement = marker.getPopup().getElement();
-                        if (popupElement) {
-                            popupElement.addEventListener('mouseleave', () => marker.closePopup());
-                        }
-                    });
-
-                    sMarker.on('mouseout', function(e) {
-                        const marker = e.target;
-                        setTimeout(() => {
-                            const container = marker.getPopup().getElement();
-                            if (container && !container.matches(':hover')) marker.closePopup();
-                        }, 50); 
-                    });
-
-                    sMarker.addTo(map);
-                    batchStops.push(sMarker);
+            const allManut = document.querySelectorAll('.chk-manutencao');
+            const checkedManut = document.querySelectorAll('.chk-manutencao:checked');
+            if (checkedManut.length > 0 && checkedManut.length < allManut.length) {
+                checkedManut.forEach(chk => {
+                    const b = document.createElement('div');
+                    b.className = 'applied-tag';
+                    b.innerHTML = `Garagem: ${chk.value} ✕`;
+                    b.onclick = () => {
+                        chk.checked = false;
+                        render();
+                        triggerRenderLines();
+                        updateAppliedFiltersBadgeStack();
+                    };
+                    stack.appendChild(b);
                 });
-                activeStops = batchStops;
+            }
+
+            const allOp = document.querySelectorAll('.chk-operacao');
+            const checkedOp = document.querySelectorAll('.chk-operacao:checked');
+            if (checkedOp.length > 0 && checkedOp.length < allOp.length) {
+                checkedOp.forEach(chk => {
+                    const b = document.createElement('div');
+                    b.className = 'applied-tag';
+                    b.innerHTML = `Op: ${chk.value} ✕`;
+                    b.onclick = () => {
+                        chk.checked = false;
+                        render();
+                        triggerRenderLines();
+                        updateAppliedFiltersBadgeStack();
+                    };
+                    stack.appendChild(b);
+                });
+            }
+
+            const allMod = document.querySelectorAll('.chk-modelo');
+            const checkedMod = document.querySelectorAll('.chk-modelo:checked');
+            if (checkedMod.length > 0 && checkedMod.length < allMod.length) {
+                checkedMod.forEach(chk => {
+                    const b = document.createElement('div');
+                    b.className = 'applied-tag';
+                    b.innerHTML = `Mod: ${chk.value} ✕`;
+                    b.onclick = () => {
+                        chk.checked = false;
+                        render();
+                        triggerRenderLines();
+                        updateAppliedFiltersBadgeStack();
+                    };
+                    stack.appendChild(b);
+                });
             }
         }
 
-        async function drawRoute(linha, sentido) {
-            if (!linha) return;
-            if (rotaAtiva && rotaAtiva.linha === linha && rotaAtiva.sentido === sentido) return;
-
-            activePolylines.forEach(p => map.removeLayer(p));
-            activeStops.forEach(s => map.removeLayer(s));
-            activePolylines = [];
-            activeStops = [];
-
-            const targetDirection = (sentido === "Ida") ? 0 : 1;
-
-            function plot(itinerario) {
-                rotaAtiva = { linha, sentido, itinerarioCompleto: itinerario };
-
-                if (itinerario.shape) {
-                    const coords = decodePolyline(itinerario.shape);
-                    activePolylines.push(L.polyline(coords, { color: 'black', weight: 8 }).addTo(map));
-                    activePolylines.push(L.polyline(coords, { color: BSBUS_GREEN, weight: 4 }).addTo(map));
-                }
-
-                if (document.getElementById('chk-show-stops').checked) {
-                    renderStops(itinerario);
-                }
-            }
-
-            if (itinerarioCache.has(linha)) {
-                const cachedData = itinerarioCache.get(linha);
-                const itinerario = cachedData.itinerarios.find(i => i.directionId === targetDirection) || cachedData.itinerarios[0];
-                if (itinerario) plot(itinerario);
-                return;
-            }
-
-            try {
-                const response = await fetch(`https://gps-bsbus.vercel.app/itinerario/${linha}`);
-                const data = await response.json();
-                
-                if (data && data.itinerarios) {
-                    itinerarioCache.set(linha, data);
-                    
-                    const itinerario = data.itinerarios.find(i => i.directionId === targetDirection) || data.itinerarios[0];
-                    if (itinerario) plot(itinerario);
-                }
-            } catch (err) {
-                console.error("Erro ao buscar itinerário:", err);
-            }
-        }
-
+        // ==========================================
+        // EVENTOS DE CLIQUE NO MAPA
+        // ==========================================
+        
+        // 1. Clique simples: fecha popup e painel, MANTENDO O TRAÇADO VISÍVEL
         map.on('click', () => {
-            itemSelecionado = null;
-            rotaAtiva = null;
-            activePolylines.forEach(p => map.removeLayer(p));
-            activeStops.forEach(s => map.removeLayer(s));
-            activePolylines = []; 
-            activeStops = [];
+            controlPanel.classList.remove('open');
             map.closePopup();
+            currentOpenPopup = null;
+        });
+
+        // 2. Duplo clique: FECHA TUDO (traçado, foco de linha e fecha popup forçadamente)
+        map.on('dblclick', () => {
+            itemSelecionado = null;
+            controlPanel.classList.remove('open');
+            map.closePopup();
+            currentOpenPopup = null;
+            clearRouteLayers();
             render();
+            triggerRenderLines();
         });
 
         setInterval(() => {
             for (let id in markers) {
                 const el = document.getElementById(`stat-${id}`);
-                if (el) el.innerText = getLiveStatus(markers[id].vData.data, markers[id].vData.hora);
+                if (el && markers[id].vData) {
+                    el.innerText = getLiveStatus(markers[id].vData.data, markers[id].vData.hora);
+                }
             }
         }, 1000);
 
-        document.querySelectorAll('input[type=checkbox]').forEach(c => c.onchange = render);
-        
+        document.querySelectorAll('.control-panel input[type=checkbox]').forEach(c => {
+            c.addEventListener('change', () => {
+                render();
+                triggerRenderLines();
+                updateAppliedFiltersBadgeStack();
+            });
+        });
+
+        // Inicialização
         fetchData();
+        updateAppliedFiltersBadgeStack();
         setInterval(fetchData, 10000);
     </script>
 </body>
