@@ -13,7 +13,7 @@
         :root {
             --primary: #2563eb;
             --cor-bsbus: #4dff00;
-            --cor-prefixo-7: #A99759;
+            --cor-prefixo-7: #e1b74b;
             --surface: rgba(255, 255, 255, 0.95);
             --surface-solid: #ffffff;
             --text-main: #1e293b;
@@ -31,7 +31,7 @@
         /* === TOP BAR === */
         .top-bar {
             position: absolute; top: max(10px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
-            width: 94%; max-width: 400px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+            width: 94%; max-width: 400px; z-index: 1000; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none;
         }
         .top-bar > * { pointer-events: auto; }
 
@@ -41,8 +41,30 @@
         .search-clear { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; background: rgba(128,128,128,0.2); border-radius: 50%; display: none; justify-content: center; align-items: center; cursor: pointer; color: var(--text-sec); font-size: 12px; font-weight: 800; }
         .search-clear.visible { display: flex; }
 
-        .search-tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-height: 70px; overflow-y: auto; }
-        .tag { background: var(--text-main); color: var(--surface-solid); font-size: 11px; padding: 4px 10px; border-radius: 20px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px; transition: background 0.2s; }
+        /* === CONTÊINER DE TAGS EXPANDIDO NA HORIZONTAL (SEM ROLAGEM, TAGS TAMANHO PADRÃO) === */
+        .search-tags { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 6px; 
+            justify-content: center; 
+            align-items: center;
+            width: 70vw;
+            pointer-events: auto;
+        }
+        .tag { 
+            background: var(--text-main); 
+            color: var(--surface-solid); 
+            font-size: 11px; 
+            padding: 4px 10px; 
+            border-radius: 20px; 
+            cursor: pointer; 
+            font-weight: 600; 
+            display: inline-flex; 
+            align-items: center; 
+            gap: 5px; 
+            transition: background 0.2s; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
         .tag:hover { background-color: #ff4d4d; color: white; }
 
         .suggestions { background: var(--surface-solid); margin-top: 5px; border-radius: 12px; max-height: 45vh; overflow-y: auto; display: none; box-shadow: var(--shadow); color: var(--text-main); width: 100%; }
@@ -186,6 +208,7 @@
             .sectors-layout-table { grid-template-columns: 1fr; }
             .toggle-stops-container { padding: 6px 10px; }
             .toggle-label { font-size: 11px; }
+            .search-tags { width: 94vw; max-width: 94%; }
         }
     </style>
 </head>
@@ -339,7 +362,7 @@
 
         const itinerarioCache = new Map();
 
-        // Paradas (autoPan false)
+        // Paradas
         const savedStopsState = localStorage.getItem('showStops') === 'true';
         const chkStops = document.getElementById('chk-show-stops');
         if (chkStops) {
@@ -472,7 +495,7 @@
             if (core >= 1081 && core <= 1092) return { modelo: "Antigo Básico Porta Esquerda (4 portas)", manutencao: "Brazlândia", operacao: "Brazlândia", core };
 
             // Antigo Básico (3 portas)
-            if (core === 1093 || (core >= 1095 && core <= 1097)) return { modelo: "Antigo Básico (3 portas)", manutencao: "Setor O", operacao: "Estrutural", core };
+            if (core >= 1093 && core <= 1097 && core !== 1094) return { modelo: "Antigo Básico (3 portas)", manutencao: "Setor O", operacao: "Estrutural", core };
             if (core === 1094) return { modelo: "Antigo Básico (3 portas)", manutencao: "Setor O", operacao: "Setor O", core };
             if (core >= 1098 && core <= 1100) return { modelo: "Antigo Básico (3 portas)", manutencao: "Setor O", operacao: "Reserva", core };
             if (core === 1101) return { modelo: "Antigo Básico (3 portas)", manutencao: "Brazlândia", operacao: "Reserva", core };
@@ -663,7 +686,7 @@
 
             const showStops = document.getElementById('chk-show-stops').checked;
 
-            // 1. Veículo selecionado por clique no Badge: Plota o traçado do veículo
+            // 1. Veículo selecionado por clique no Badge
             if (itemSelecionado && itemSelecionado.linha) {
                 const data = await fetchItinerarioData(itemSelecionado.linha);
                 if (thisToken !== renderLinesToken || !data || !data.itinerarios) return;
@@ -804,19 +827,23 @@
 
                 currentIds.add(v.prefixo);
                 const pos = [v.latitude, v.longitude];
-                const startsWith7 = String(v.prefixo).trim().startsWith('7');
+                
+                // Amarelo para Prefixo 7 OU Core de 001 a 033
+                const isPrefixo7 = String(v.prefixo).trim().startsWith('7');
+                const isCore1a33 = typeof specs.core === 'number' && specs.core >= 1 && specs.core <= 33;
+                const isYellowBadge = isPrefixo7 || isCore1a33;
 
                 if (markers[v.prefixo]) {
                     markers[v.prefixo].setLatLng(pos);
                     markers[v.prefixo].vData = v;
                     markers[v.prefixo].specs = specs;
                     if (markers[v.prefixo].isPopupOpen()) {
-                        markers[v.prefixo].setPopupContent(createPopup(v, specs));
+                        markers[v.prefixo].setPopupContent(createPopup(v, specs, isYellowBadge));
                     }
                 } else {
                     const icon = L.divIcon({
                         className: '',
-                        html: `<div class="bus-marker-wrapper"><div class="bus-marker-custom ${startsWith7 ? 'p7' : ''}">${v.linha && v.linha.trim() !== "" ? v.linha : v.prefixo}</div></div>`,
+                        html: `<div class="bus-marker-wrapper"><div class="bus-marker-custom ${isYellowBadge ? 'p7' : ''}">${v.linha && v.linha.trim() !== "" ? v.linha : v.prefixo}</div></div>`,
                         iconSize: [0, 0]
                     });
                     
@@ -824,8 +851,7 @@
                     m.vData = v;
                     m.specs = specs;
 
-                    // autoPan: false impede que o mapa pule ou se mova ao abrir o popup
-                    const popup = L.popup({ autoClose: false, closeOnClick: false, autoPan: false }).setContent(createPopup(v, specs));
+                    const popup = L.popup({ autoClose: false, closeOnClick: false, autoPan: false }).setContent(createPopup(v, specs, isYellowBadge));
                     m.bindPopup(popup);
                     
                     m.on('mouseover', function() {
@@ -840,7 +866,6 @@
                         }
                     });
 
-                    // Clique no Badge: fecha popup anterior e abre APENAS o último clicado sem mover o mapa
                     m.on('click', (e) => {
                         L.DomEvent.stopPropagation(e);
 
@@ -877,8 +902,7 @@
         // ==========================================
         // POPUP
         // ==========================================
-        function createPopup(v, specs) {
-            const isP7 = String(v.prefixo).trim().startsWith('7');
+        function createPopup(v, specs, isYellowBadge) {
             let headerText = 'Sem Linha';
             if (String(v.linha).trim() === "0.001") {
                 headerText = 'TRANSFERÊNCIA';
@@ -889,7 +913,7 @@
             }
 
             return `
-                <div class="p-header ${isP7 ? 'p7' : ''}">${headerText}</div>
+                <div class="p-header ${isYellowBadge ? 'p7' : ''}">${headerText}</div>
                 <div class="p-body">
                     <div class="p-row"><span class="p-label">Prefixo</span><span class="p-val">${v.prefixo}</span></div>
                     <div class="p-row"><span class="p-label">Modelo</span><span class="p-val">${specs.modelo}</span></div>
@@ -907,7 +931,7 @@
         }
 
         // ==========================================
-        // EMPILHAMENTO DOS FILTROS APLICADOS (SEM PREFIXO/LINHA)
+        // EMPILHAMENTO DOS FILTROS APLICADOS
         // ==========================================
         function updateAppliedFiltersBadgeStack() {
             const stack = document.getElementById('applied-filters-stack');
@@ -969,14 +993,12 @@
         // EVENTOS DE CLIQUE NO MAPA
         // ==========================================
         
-        // 1. Clique simples: fecha popup e painel, MANTENDO O TRAÇADO VISÍVEL
         map.on('click', () => {
             controlPanel.classList.remove('open');
             map.closePopup();
             currentOpenPopup = null;
         });
 
-        // 2. Duplo clique: FECHA TUDO (traçado, foco de linha e fecha popup forçadamente)
         map.on('dblclick', () => {
             itemSelecionado = null;
             controlPanel.classList.remove('open');
