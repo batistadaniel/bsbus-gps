@@ -70,7 +70,14 @@ body,html{height:100%;width:100%;overflow:hidden;background:#e5e5e5}
 .slider:before{position:absolute;content:"";height:14px;width:14px;left:3px;bottom:3px;background:#fff;transition:.3s;border-radius:50%}
 input:checked+.slider{background:var(--cor-bsbus)}
 input:checked+.slider:before{transform:translateX(18px)}
-@media(max-width:500px){.control-panel{width:calc(100% - 30px)}.sectors-layout-table{grid-template-columns:1fr}.toggle-stops-container{padding:6px 10px}.toggle-label{font-size:11px}.search-tags{width:94vw;max-width:94%}}
+@media(max-width:600px){
+  .top-bar{left: calc(50% + 24px); width: calc(94% - 48px); max-width: none;}
+  .control-panel{width:calc(100% - 30px)}
+  .sectors-layout-table{grid-template-columns:1fr}
+  .toggle-stops-container{top: calc(max(10px, env(safe-area-inset-top)) + 58px); right: 50%; transform: translateX(50%); padding:6px 12px; white-space: nowrap;}
+  .toggle-label{font-size:11px}
+  .search-tags{width:94vw;max-width:94%}
+}
 </style>
 </head>
 <body>
@@ -378,19 +385,11 @@ function updateAppliedFiltersBadgeStack() {
   });
 }
 
-// popup que abre no hover, continua aberto enquanto o mouse estiver nele (dá pra copiar) e fixa no clique
+// Popup ajustado para abrir estritamente no clique
 function hoverPopup(m, o) {
-  o = o || {};
   m.off('click', m._openPopup, m);
-  const fechar = () => { clearTimeout(m._t); m._t = setTimeout(() => {
-    const p = m.getPopup(), el = p && p.getElement();
-    if (m._pin || (o.naoFechar && o.naoFechar()) || (el && el.matches(':hover'))) return;
-    m.closePopup(); }, 250); };
-  m.on('mouseover', () => { clearTimeout(m._t); if (!o.podeAbrir || o.podeAbrir()) m.openPopup(); });
-  m.on('mouseout', fechar);
   m.on('click', () => { m.openPopup(); m._pin = true; });
   m.on('popupclose', () => { m._pin = false; });
-  m.on('popupopen', (e) => { const el = e.popup.getElement(); if (el && !el._h) { el._h = 1; el.addEventListener('mouseenter', () => clearTimeout(m._t)); el.addEventListener('mouseleave', fechar); } });
 }
 // 1 clique no mapa (sem arrastar) desfaz a seleção; arrastar/zoom não fecha nada
 function limparSelecao() {
@@ -496,7 +495,6 @@ setInterval(fetchData, 10000);
 
   @media (max-width:600px){
     .mon-panel{left:0;right:0;bottom:0;width:100%;max-height:68vh;border-radius:18px 18px 0 0;padding-bottom:env(safe-area-inset-bottom);z-index:1200}
-    .toggle-stops-container{top:auto;bottom:calc(max(20px,env(safe-area-inset-bottom)) + 52px);right:15px}
     .applied-filters-stack{bottom:calc(max(20px,env(safe-area-inset-bottom)) + 110px)}
   }`;
   const st = document.createElement('style');
@@ -542,7 +540,6 @@ setInterval(fetchData, 10000);
     if (!l) return 'semlinha';
     if (l === '0.001') return 'transf';
     const s = statusRota[v.prefixo];
-    // só vale se o diagnóstico foi feito para a MESMA linha/sentido de agora
     if (s && s.fora && s.linha === l && s.dir === dirDe(v)) return s.motivo === 'sentido' ? 'sentido' : 'fora';
     return 'ok';
   }
@@ -560,7 +557,6 @@ setInterval(fetchData, 10000);
       .catch(() => falhas.set(linha, Date.now()));
   }
 
-  // download em "pool", sem loop com await
   function baixar(linhas, max) {
     return new Promise((resolve) => {
       let prox = 0, ativos = 0;
@@ -575,7 +571,6 @@ setInterval(fetchData, 10000);
     });
   }
 
-  // processa a lista em fatias curtas, devolvendo o controle ao navegador entre elas
   function emFatias(lista, fn, onProg, fim) {
     let i = 0;
     (function passo() {
@@ -667,7 +662,7 @@ setInterval(fetchData, 10000);
     });
     resumo = r; ultimaVerificacao = Date.now(); progresso = '';
     checando = false;
-    window.render();              // atualiza badges/ícones/popups com o novo diagnóstico
+    window.render();
     atualizarPainel();
     if (pendente) { pendente = false; checarRotas(); }
   }
@@ -709,7 +704,6 @@ setInterval(fetchData, 10000);
     return { html, icon: L.divIcon({ className: '', iconSize: [0, 0], html }) };
   }
 
-
   function escala() {
     const z = map.getZoom(), c = map.getContainer();
     c.style.setProperty('--bus-size', (z >= 18 ? 76 : z >= 17 ? 66 : z >= 15 ? 56 : z >= 13 ? 46 : 38) + 'px');
@@ -717,7 +711,6 @@ setInterval(fetchData, 10000);
     c.classList.toggle('hide-badges', z < ESCONDER_BADGE_ABAIXO_ZOOM);
   }
 
-  // mantém a seleção (clique no ônibus) com os dados mais novos
   function sincronizarSelecao() {
     if (!itemSelecionado) return;
     const novo = busDataRaw.find((x) => x.prefixo === itemSelecionado.prefixo);
@@ -799,16 +792,17 @@ setInterval(fetchData, 10000);
       if (m) {
         m.setLatLng(pos);
         m.vData = v; m.specs = specs; m.tipo = tipo;
-        if (m._html !== b.html) { m.setIcon(b.icon); m._html = b.html; }   // qualquer mudança visual (linha, estado, cor, rumo) refaz o ícone
+        if (m._html !== b.html) { m.setIcon(b.icon); m._html = b.html; }
         const pp = m.getPopup();
         if (pp && pp.isOpen()) pp.update();
       } else {
         m = L.marker(pos, { icon: b.icon }).addTo(map);
         m._html = b.html; m.vData = v; m.specs = specs; m.tipo = tipo;
         m.bindPopup((layer) => createPopupMonitor(layer.vData, layer.specs, layer.tipo), { autoClose: false, closeOnClick: false, autoPan: false });
-        hoverPopup(m, { podeAbrir: () => !itemSelecionado, naoFechar: () => itemSelecionado && itemSelecionado.prefixo === m.vData.prefixo });
+        
+        // Popup configurado para abrir somente com clique explícito
         m.on('click', () => {
-          if (itemSelecionado && itemSelecionado.prefixo === m.vData.prefixo) { limparSelecao(); return; }   // 1 clique no selecionado = fecha
+          if (itemSelecionado && itemSelecionado.prefixo === m.vData.prefixo) { limparSelecao(); return; }
           if (currentOpenPopup && currentOpenPopup.isOpen()) map.closePopup(currentOpenPopup);
           itemSelecionado = m.vData;
           window.render(); triggerRenderLines();
@@ -914,11 +908,11 @@ setInterval(fetchData, 10000);
   };
 
   // =====================================================================
-  //  INICIALIZAÇÃO (substitui o render/popup originais)
+  //  INICIALIZAÇÃO
   // =====================================================================
   window.render = renderMonitor;
   window.createPopup = createPopupMonitor;
-  Object.keys(markers).forEach((id) => { map.removeLayer(markers[id]); delete markers[id]; }); // marcadores do render antigo
+  Object.keys(markers).forEach((id) => { map.removeLayer(markers[id]); delete markers[id]; });
   escala();
   map.on('zoomend', escala);
   setInterval(subTexto, 1000);
