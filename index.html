@@ -1,1036 +1,932 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GPS - BsBus</title>
-
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-    <style>
-        :root {
-            --primary: #2563eb;
-            --cor-bsbus: #4dff00;
-            --cor-prefixo-7: #e1b74b;
-            --surface: rgba(255, 255, 255, 0.95);
-            --surface-solid: #ffffff;
-            --text-main: #1e293b;
-            --text-sec: #64748b;
-            --border: rgba(0, 0, 0, 0.15);
-            --shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body, html { height: 100%; width: 100%; overflow: hidden; background: #e5e5e5; }
-        #map { height: 100%; width: 100%; z-index: 0; }
-
-        .leaflet-control-attribution { display: none !important; }
-
-        /* === TOP BAR === */
-        .top-bar {
-            position: absolute; top: max(10px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
-            width: 94%; max-width: 400px; z-index: 1000; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none;
-        }
-        .top-bar > * { pointer-events: auto; }
-
-        .search-container { background: white; width: 100%; height: 48px; display: flex; align-items: center; padding: 0 15px; border-radius: 24px; position: relative; box-shadow: var(--shadow); border: var(--border); }
-        #search { flex: 1; border: none; background: transparent; font-size: 16px; outline: none; height: 100%; color: var(--text-main); font-weight: 500; margin-left: 10px; padding-right: 30px; }
-        
-        .search-clear { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; background: rgba(128,128,128,0.2); border-radius: 50%; display: none; justify-content: center; align-items: center; cursor: pointer; color: var(--text-sec); font-size: 12px; font-weight: 800; }
-        .search-clear.visible { display: flex; }
-
-        /* === CONTÊINER DE TAGS EXPANDIDO NA HORIZONTAL (SEM ROLAGEM, TAGS TAMANHO PADRÃO) === */
-        .search-tags { 
-            display: flex; 
-            flex-wrap: wrap; 
-            gap: 6px; 
-            justify-content: center; 
-            align-items: center;
-            width: 70vw;
-            pointer-events: auto;
-        }
-        .tag { 
-            background: var(--text-main); 
-            color: var(--surface-solid); 
-            font-size: 11px; 
-            padding: 4px 10px; 
-            border-radius: 20px; 
-            cursor: pointer; 
-            font-weight: 600; 
-            display: inline-flex; 
-            align-items: center; 
-            gap: 5px; 
-            transition: background 0.2s; 
-            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-        }
-        .tag:hover { background-color: #ff4d4d; color: white; }
-
-        .suggestions { background: var(--surface-solid); margin-top: 5px; border-radius: 12px; max-height: 45vh; overflow-y: auto; display: none; box-shadow: var(--shadow); color: var(--text-main); width: 100%; }
-        .suggestion-item { padding: 12px 15px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 14px; transition: background 0.1s; display: flex; justify-content: space-between; }
-        .suggestion-item.highlighted, .suggestion-item:hover { background: rgba(37, 99, 235, 0.15); color: var(--primary); font-weight: 700; }
-
-        /* === CONTROLE DE CAMADAS === */
-        .leaflet-bottom.leaflet-left {
-            bottom: max(20px, env(safe-area-inset-bottom)) !important;
-            left: 15px !important;
-            z-index: 1000;
-        }
-        .leaflet-control-layers {
-            border-radius: 12px !important; box-shadow: var(--shadow) !important;
-            background: var(--surface) !important; border: 1px solid rgba(0,0,0,0.1) !important;
-        }
-
-        /* === EMPILHAMENTO DE FILTROS APLICADOS === */
-        .applied-filters-stack {
-            position: absolute; right: 15px; bottom: 80px; z-index: 999;
-            display: flex; flex-direction: column; align-items: flex-end; gap: 5px;
-            max-height: calc(100vh - 200px); overflow-y: auto; pointer-events: none;
-        }
-        .applied-tag {
-            pointer-events: auto; background: #0f172a; color: #fff;
-            font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 10px;
-            display: flex; align-items: center; gap: 6px; box-shadow: var(--shadow);
-            cursor: pointer; transition: background-color 0.2s;
-        }
-        .applied-tag:hover { background: #ef4444; }
-
-        /* === BOTÃO DE FILTROS === */
-        .btn-filter-toggle {
-            position: absolute; bottom: max(20px, env(safe-area-inset-bottom)); right: 15px; z-index: 1000;
-            background: #0f172a; color: white; border: none; padding: 10px 16px;
-            border-radius: 24px; font-weight: 700; font-size: 13px; display: flex;
-            align-items: center; gap: 6px; box-shadow: var(--shadow); cursor: pointer;
-        }
-        .btn-filter-toggle:hover { background: #1e293b; }
-
-        /* === PAINEL DE CONTROLE === */
-        .control-panel {
-            position: absolute; bottom: max(70px, env(safe-area-inset-bottom)); right: 15px; width: 440px; 
-            max-height: calc(100vh - 140px); background: white; padding: 16px; border-radius: 16px; 
-            box-shadow: var(--shadow); border: 1px solid var(--border); z-index: 1001;
-            display: none; flex-direction: column; gap: 10px; overflow-y: auto;
-        }
-        .control-panel.open { display: flex; }
-
-        .control-panel::-webkit-scrollbar,
-        .suggestions::-webkit-scrollbar,
-        .applied-filters-stack::-webkit-scrollbar { width: 5px; }
-        .control-panel::-webkit-scrollbar-thumb,
-        .suggestions::-webkit-scrollbar-thumb,
-        .applied-filters-stack::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.4); border-radius: 10px; }
-        .control-panel::-webkit-scrollbar-track,
-        .suggestions::-webkit-scrollbar-track,
-        .applied-filters-stack::-webkit-scrollbar-track { background: transparent; }
-
-        .panel-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; }
-        .panel-title { font-size: 12px; font-weight: 800; color: var(--text-sec); text-transform: uppercase; }
-        .panel-close { cursor: pointer; font-weight: 800; font-size: 15px; color: var(--text-sec); padding: 4px; }
-        
-        /* BOTÕES TODOS / NENHUM */
-        .filter-section-header {
-            display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
-        }
-        .btn-action-group {
-            display: inline-flex; gap: 4px; background: #e2e8f0; padding: 2px; border-radius: 6px;
-        }
-        .btn-action-chip {
-            background: white; border: none; font-size: 10px; font-weight: 700; color: var(--text-main);
-            cursor: pointer; padding: 2px 7px; border-radius: 4px; transition: all 0.15s ease-in-out;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        }
-        .btn-action-chip:hover { background: #0f172a; color: white; }
-        .btn-action-chip:active { transform: scale(0.95); }
-
-        /* Layout em grade lado a lado */
-        .sectors-layout-table {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-            background: #f8fafc; padding: 10px; border-radius: 10px; border: 1px solid #e2e8f0;
-        }
-        .sectors-column-title {
-            font-size: 11px; font-weight: 800; color: #0f172a; text-transform: uppercase;
-        }
-        .filter-list { display: flex; flex-direction: column; gap: 4px; }
-        .filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
-        .filter-item { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text-main); }
-        .filter-item input { width: 16px; height: 16px; accent-color: var(--cor-bsbus); cursor: pointer; }
-        .divider { height: 1px; background: #eee; margin: 4px 0; }
-
-        /* === BADGES DOS VEÍCULOS === */
-        .bus-marker-wrapper { position: relative; width: 0; height: 0; }
-        .bus-marker-custom {
-            background: var(--cor-bsbus); border: 2px solid #000; color: #000;
-            font-weight: 900; font-size: 11px; padding: 2px 6px; border-radius: 6px;
-            white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-            position: absolute; transform: translate(-50%, -50%); display: inline-block; text-align: center;
-        }
-        .bus-marker-custom.p7 { background: var(--cor-prefixo-7) !important; }
-
-        /* === POPUP === */
-        .leaflet-popup-content-wrapper { background: white; border-radius: 14px; padding: 0; box-shadow: var(--shadow); overflow: hidden; }
-        .leaflet-popup-content { margin: 0 !important; width: 235px !important; text-align: center; }
-        .p-header { 
-            padding: 6px 10px; font-weight: 800; text-align: center; 
-            background: #f1f5f9; border-top-left-radius: 14px; border-top-right-radius: 14px;
-            border-bottom: 3px solid var(--cor-bsbus); font-size: 14px; color: var(--text-main);
-        }
-        .p-header.p7 { border-bottom: 3px solid var(--cor-prefixo-7) !important; }
-        .p-body { padding: 10px 15px; font-size: 12px; }
-        .p-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
-        .p-label { color: var(--text-sec); font-weight: 500; text-align: left; }
-        .p-val { font-weight: 700; color: #000; text-align: right; }
-
-        /* PARADAS */
-        .icon-map { display: flex; flex-direction: column; align-items: center; pointer-events: none; }
-        .placa-azul-map { display: flex; background-color: #385EA9; width: 32px; height: 37px; justify-content: center; align-items: center; border-radius: 4px; pointer-events: auto; }
-        .borda-map { display: flex; align-items: center; justify-content: center; border: 1px solid #ffffff; border-radius: 2px; height: 90%; width: 90%; }
-        .info-placa-map { display: flex; align-items: center; justify-content: center; background-color: #ffffff; width: 21px; height: 19px; margin-bottom: 5px; font-size: 11px; font-weight: bold; border-radius: 1px; color: #000; text-align: center; }
-        .poste-map { width: 4px; height: 10px; background-color: #000; }
-        .popup-parada .leaflet-popup-content { width: auto !important; min-width: 220px; max-width: 350px; padding: 10px 18px !important; text-align: center; color: black !important; font-weight: normal !important; }
-
-        /* TOGGLE PARADAS */
-        .toggle-stops-container {
-            position: absolute; top: max(10px, env(safe-area-inset-top)); right: 15px;
-            z-index: 1000; background: white; padding: 9px 14px; border-radius: 25px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 8px;
-        }
-        .toggle-label { font-size: 13px; font-weight: 600; color: #333; }
-        .switch { position: relative; display: inline-block; width: 38px; height: 20px; }
-        .switch input { display: none; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--cor-bsbus); }
-        input:checked + .slider:before { transform: translateX(18px); }
-
-        @media (max-width: 500px) {
-            .control-panel { width: calc(100% - 30px); }
-            .sectors-layout-table { grid-template-columns: 1fr; }
-            .toggle-stops-container { padding: 6px 10px; }
-            .toggle-label { font-size: 11px; }
-            .search-tags { width: 94vw; max-width: 94%; }
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>BsBus - GPS</title>
+<link rel="icon" href="icons/logo/onibus-bsbus.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--primary:#2563eb;--cor-bsbus:#4dff00;--cor-prefixo-7:#e1b74b;--surface:rgba(255,255,255,.95);--surface-solid:#fff;--text-main:#1e293b;--text-sec:#64748b;--border:rgba(0,0,0,.15);--shadow:0 4px 20px rgba(0,0,0,.1)}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif;-webkit-tap-highlight-color:transparent}
+body,html{height:100%;width:100%;overflow:hidden;background:#e5e5e5}
+#map{height:100%;width:100%;z-index:0}
+.leaflet-control-attribution{display:none!important}
+.top-bar{position:absolute;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:94%;max-width:400px;z-index:1000;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+.top-bar>*{pointer-events:auto}
+.search-container{background:#fff;width:100%;height:48px;display:flex;align-items:center;padding:0 15px;border-radius:24px;position:relative;box-shadow:var(--shadow)}
+#search{flex:1;border:none;background:transparent;font-size:16px;outline:none;height:100%;color:var(--text-main);font-weight:500;margin-left:10px;padding-right:30px}
+.search-clear{position:absolute;right:12px;top:50%;transform:translateY(-50%);width:20px;height:20px;background:rgba(128,128,128,.2);border-radius:50%;display:none;justify-content:center;align-items:center;cursor:pointer;color:var(--text-sec);font-size:12px;font-weight:800}
+.search-clear.visible{display:flex}
+.search-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;width:70vw}
+.tag{background:var(--text-main);color:#fff;font-size:11px;padding:4px 10px;border-radius:20px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:5px;transition:background .2s;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+.tag:hover{background:#ff4d4d}
+.suggestions{background:#fff;margin-top:5px;border-radius:12px;max-height:45vh;overflow-y:auto;display:none;box-shadow:var(--shadow);color:var(--text-main);width:100%}
+.suggestion-item{padding:12px 15px;border-bottom:1px solid var(--border);cursor:pointer;font-size:14px;display:flex;justify-content:space-between}
+.suggestion-item.highlighted,.suggestion-item:hover{background:rgba(37,99,235,.15);color:var(--primary);font-weight:700}
+.leaflet-top.leaflet-left{top:max(10px,env(safe-area-inset-top))!important;left:15px!important;z-index:1000}
+.leaflet-control-layers{border-radius:12px!important;box-shadow:var(--shadow)!important;background:var(--surface)!important;border:1px solid rgba(0,0,0,.1)!important}
+.applied-filters-stack{position:absolute;right:15px;bottom:80px;z-index:999;display:flex;flex-direction:column;align-items:flex-end;gap:5px;max-height:calc(100vh - 200px);overflow-y:auto;pointer-events:none}
+.applied-tag{pointer-events:auto;background:#0f172a;color:#fff;font-size:11px;font-weight:700;padding:4px 9px;border-radius:10px;display:flex;align-items:center;gap:6px;box-shadow:var(--shadow);cursor:pointer}
+.applied-tag:hover{background:#ef4444}
+.btn-filter-toggle{position:absolute;bottom:max(20px,env(safe-area-inset-bottom));right:15px;z-index:1000;background:#0f172a;color:#fff;border:none;padding:10px 16px;border-radius:24px;font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;box-shadow:var(--shadow);cursor:pointer}
+.control-panel{position:absolute;bottom:max(70px,env(safe-area-inset-bottom));right:15px;width:440px;max-height:calc(100vh - 140px);background:#fff;padding:16px;border-radius:16px;box-shadow:var(--shadow);border:1px solid var(--border);z-index:1001;display:none;flex-direction:column;gap:10px;overflow-y:auto}
+.control-panel.open{display:flex}
+.panel-header,.filter-section-header{display:flex;justify-content:space-between;align-items:center}
+.panel-header{border-bottom:1px solid #f1f5f9;padding-bottom:6px}
+.filter-section-header{margin-bottom:6px}
+.panel-title{font-size:12px;font-weight:800;color:var(--text-sec);text-transform:uppercase}
+.panel-close{cursor:pointer;font-weight:800;font-size:15px;color:var(--text-sec);padding:4px}
+.btn-action-group{display:inline-flex;gap:4px;background:#e2e8f0;padding:2px;border-radius:6px}
+.btn-action-chip{background:#fff;border:none;font-size:10px;font-weight:700;color:var(--text-main);cursor:pointer;padding:2px 7px;border-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.btn-action-chip:hover{background:#0f172a;color:#fff}
+.sectors-layout-table{display:grid;grid-template-columns:1fr 1fr;gap:12px;background:#f8fafc;padding:10px;border-radius:10px;border:1px solid #e2e8f0}
+.sectors-column-title{font-size:11px;font-weight:800;color:#0f172a;text-transform:uppercase}
+.filter-list{display:flex;flex-direction:column;gap:4px}
+.filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.filter-item{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;cursor:pointer;color:var(--text-main)}
+.filter-item input{width:16px;height:16px;accent-color:var(--cor-bsbus);cursor:pointer}
+.divider{height:1px;background:#eee;margin:4px 0}
+.leaflet-popup-content-wrapper{background:#fff;border-radius:14px;padding:0;box-shadow:var(--shadow);overflow:hidden}
+.leaflet-popup-content{margin:0!important;width:235px!important;text-align:center}
+.p-header{padding:6px 10px;font-weight:800;text-align:center;background:#f1f5f9;border-bottom:3px solid var(--cor-bsbus);font-size:14px;color:var(--text-main)}
+.p-header.p7{border-bottom-color:var(--cor-prefixo-7)!important}
+.p-body{padding:10px 15px;font-size:12px}
+.p-row{display:flex;justify-content:space-between;margin-bottom:2px}
+.p-label{color:var(--text-sec);font-weight:500;text-align:left}
+.p-val{font-weight:700;color:#000;text-align:right}
+.icon-map{display:flex;flex-direction:column;align-items:center;pointer-events:none}
+.placa-azul-map{display:flex;background:#385EA9;width:32px;height:37px;justify-content:center;align-items:center;border-radius:4px;pointer-events:auto}
+.borda-map{display:flex;align-items:center;justify-content:center;border:1px solid #fff;border-radius:2px;height:90%;width:90%}
+.info-placa-map{display:flex;align-items:center;justify-content:center;background:#fff;width:21px;height:19px;margin-bottom:5px;font-size:11px;font-weight:700;border-radius:1px;color:#000}
+.poste-map{width:4px;height:10px;background:#000}
+.popup-parada .leaflet-popup-content{width:auto!important;min-width:220px;max-width:min(350px,75vw);padding:10px 18px!important;text-align:center;color:#000!important;font-weight:400!important}
+.toggle-stops-container{position:absolute;top:max(10px,env(safe-area-inset-top));right:15px;z-index:1000;background:#fff;padding:9px 14px;border-radius:25px;box-shadow:0 2px 10px rgba(0,0,0,.15);display:flex;align-items:center;gap:8px}
+.toggle-label{font-size:13px;font-weight:600;color:#333}
+.switch{position:relative;display:inline-block;width:38px;height:20px}
+.switch input{display:none}
+.slider{position:absolute;cursor:pointer;inset:0;background:#ccc;transition:.3s;border-radius:34px}
+.slider:before{position:absolute;content:"";height:14px;width:14px;left:3px;bottom:3px;background:#fff;transition:.3s;border-radius:50%}
+input:checked+.slider{background:var(--cor-bsbus)}
+input:checked+.slider:before{transform:translateX(18px)}
+@media(max-width:500px){.control-panel{width:calc(100% - 30px)}.sectors-layout-table{grid-template-columns:1fr}.toggle-stops-container{padding:6px 10px}.toggle-label{font-size:11px}.search-tags{width:94vw;max-width:94%}}
+</style>
 </head>
-
 <body>
+<div id="map"></div>
 
-    <div id="map"></div>
+<div class="top-bar">
+  <div class="search-container">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--text-sec);flex:none"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    <input type="text" id="search" placeholder="Linha ou prefixo..." autocomplete="off">
+    <div class="search-clear" id="btn-search-clear" onclick="limparBuscaInput()">✕</div>
+  </div>
+  <div id="search-tags" class="search-tags"></div>
+  <div id="suggestions" class="suggestions"></div>
+</div>
 
-    <!-- Barra de Busca -->
-    <div class="top-bar">
-        <div class="glass-panel search-container">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--text-sec)"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input type="text" id="search" placeholder="Linha ou prefixo..." autocomplete="off">
-            <div class="search-clear" id="btn-search-clear" onclick="limparBuscaInput()">✕</div>
-        </div>
-        <div id="search-tags" class="search-tags"></div>
-        <div id="suggestions" class="suggestions"></div>
+<div class="toggle-stops-container">
+  <span class="toggle-label">Mostrar paradas:</span>
+  <label class="switch"><input type="checkbox" id="chk-show-stops"><span class="slider"></span></label>
+</div>
+
+<div class="applied-filters-stack" id="applied-filters-stack"></div>
+
+<button class="btn-filter-toggle" id="btn-toggle-filters">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+  Filtros e Setores
+</button>
+
+<div class="control-panel" id="control-panel">
+  <div class="panel-header"><span class="panel-title">Filtros Operacionais</span><span class="panel-close" id="btn-close-panel">✕</span></div>
+  <div class="sectors-layout-table">
+    <div>
+      <div class="filter-section-header"><span class="sectors-column-title">Garagens</span>
+        <div class="btn-action-group"><button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-manutencao',true)">Todos</button><button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-manutencao',false)">Nenhum</button></div></div>
+      <div class="filter-list" id="filters-manutencao"></div>
     </div>
-
-    <!-- Switch Paradas -->
-    <div class="toggle-stops-container">
-        <span class="toggle-label">Mostrar paradas:</span>
-        <label class="switch">
-            <input type="checkbox" id="chk-show-stops">
-            <span class="slider"></span>
-        </label>
+    <div>
+      <div class="filter-section-header"><span class="sectors-column-title">Operação</span>
+        <div class="btn-action-group"><button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-operacao',true)">Todos</button><button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-operacao',false)">Nenhum</button></div></div>
+      <div class="filter-list" id="filters-operacao"></div>
     </div>
+  </div>
+  <div class="divider"></div>
+  <div class="filter-section-header"><span class="panel-title">Modelos de Ônibus</span>
+    <div class="btn-action-group"><button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-modelo',true)">Todos</button><button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-modelo',false)">Nenhum</button></div></div>
+  <div class="filter-list" id="filters-modelo"></div>
+  <div class="divider"></div>
+  <div class="filter-section-header"><span class="panel-title">Status Operacional</span>
+    <div class="btn-action-group"><button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-status',true)">Todos</button><button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-status',false)">Nenhum</button></div></div>
+  <div class="filter-grid">
+    <label class="filter-item"><input type="checkbox" class="chk-status" id="chk-com-linha" checked> Com Linha</label>
+    <label class="filter-item"><input type="checkbox" class="chk-status" id="chk-sem-linha" checked> Sem Linha</label>
+    <label class="filter-item"><input type="checkbox" class="chk-status" id="chk-transferencia" checked> Transf.</label>
+    <label class="filter-item"><input type="checkbox" class="chk-status" id="chk-VNR" checked> VNR</label>
+  </div>
+</div>
 
-    <!-- Stack de Filtros Aplicados (Setores e Modelos) -->
-    <div class="applied-filters-stack" id="applied-filters-stack"></div>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+const API_URL = "https://gps-bsbus.vercel.app/veiculos";
+const BSBUS_GREEN = "#4dff00";
 
-    <!-- Botão Flutuante de Filtros -->
-    <button class="btn-filter-toggle" id="btn-toggle-filters">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-        Filtros e Setores
-    </button>
+const TODAS_LINHAS_EMPRESA = ("0.005 0.038 0.039 0.041 0.047 0.049 0.053 0.092 0.159 0.310 0.311 0.312 0.313 0.322 0.323 0.324 0.330 0.331 0.332 0.333 0.334 0.335 0.338 0.341 0.343 0.346 0.348 0.350 0.353 0.360 0.362 0.364 0.368 0.370 0.371 0.372 0.374 0.375 0.377 0.379 0.382 0.385 0.393 0.397 0.400 0.401 0.402 0.403 0.404 0.405 0.406 0.410 0.411 0.413 0.414 0.415 0.416 0.420 0.421 0.423 0.424 0.450 0.551 0.553 0.556 0.557 0.558 0.805 0.808 0.812 0.818 0.841 0.842 0.844 0.845 0.873 0.876 0.878 0.883 0.886 0.906 0.907 0.911 0.913 0.918 0.920 0.921 0.926 0.927 0.928 0.929 0.930 0.934 0.946 0.949 0.953 0.956 0.957 0.958 0.960 0.962 0.963 0.965 0.966 084.1 086.1 154.7 157.5 157.8 157.9 158.2 158.4 158.5 158.6 158.8 313.1 313.2 322.1 322.2 323.1 323.2 324.1 332.1 333.1 333.2 333.6 333.7 333.8 333.9 334.4 335.1 338.1 343.2 346.1 348.1 350.1 359.1 359.2 364.1 364.2 364.3 364.4 364.5 364.7 368.1 372.2 372.3 372.9 374.1 374.2 379.1 379.2 382.1 384.1 389.1 393.4 397.2 398.1 398.3 400.2 401.1 401.5 402.5 402.7 406.1 409.1 411.1 411.2 413.2 413.4 414.1 416.1 416.2 416.3 423.1 557.1 805.3 808.1 808.5 812.1 812.2 818.1 844.3 845.2 872.1 872.3 920.4 926.1 928.1 928.2 928.3 929.1 929.2 929.3 929.4 929.5 949.1 963.1 965.1 965.2").split(" ");
 
-    <!-- Painel de Filtros -->
-    <div class="control-panel" id="control-panel">
-        <div class="panel-header">
-            <span class="panel-title">Filtros Operacionais</span>
-            <span class="panel-close" id="btn-close-panel">✕</span>
-        </div>
+const itinerarioCache = new Map();
 
-        <!-- Tabela Lado a Lado: Manutenção x Operação -->
-        <div class="sectors-layout-table">
-            <div>
-                <div class="filter-section-header">
-                    <span class="sectors-column-title">Garagens</span>
-                    <div class="btn-action-group">
-                        <button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-manutencao', true)">Todos</button>
-                        <button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-manutencao', false)">Nenhum</button>
-                    </div>
-                </div>
-                <div class="filter-list" id="filters-manutencao">
-                    <label class="filter-item"><input type="checkbox" class="chk-manutencao" value="Brazlândia" checked> Brazlândia</label>
-                    <label class="filter-item"><input type="checkbox" class="chk-manutencao" value="Pinheiros" checked> Pinheiros</label>
-                    <label class="filter-item"><input type="checkbox" class="chk-manutencao" value="QNR" checked> QNR</label>
-                    <label class="filter-item"><input type="checkbox" class="chk-manutencao" value="Setor O" checked> Setor O</label>
-                    <label class="filter-item"><input type="checkbox" class="chk-manutencao" value="Guará" checked> Guará</label>
-                    <label class="filter-item"><input type="checkbox" class="chk-manutencao" value="Recanto das Emas" checked> Recanto</label>
-                </div>
-            </div>
+// ---- filtros (gerados por JS) ----
+const MD = {B3:'Básico (3 portas)',B4:'Básico Porta Esquerda (4 portas)',A3:'Antigo Básico (3 portas)',A4:'Antigo Básico Porta Esquerda (4 portas)',MN:'MINI (Zebrinha)'};
+const chk = (cls, val, label, style) => `<label class="filter-item"${style ? ` style="${style}"` : ''}><input type="checkbox" class="${cls}" value="${val}" checked> ${label}</label>`;
+document.getElementById('filters-manutencao').innerHTML = ['Brazlândia','Pinheiros','QNR','Setor O','Guará','Recanto das Emas'].map(g => chk('chk-manutencao', g, g === 'Recanto das Emas' ? 'Recanto' : g)).join('');
+document.getElementById('filters-operacao').innerHTML = ['Brazlândia','Pinheiros','Estrutural','QNR','M Norte','Setor O','Guará','Riacho Fundo','Samambaia','Recanto das Emas','Reserva'].map(o => o === 'Reserva' ? chk('chk-operacao', o, '<b>Reserva</b>', 'color:#b91c1c;') : chk('chk-operacao', o, o === 'Recanto das Emas' ? 'Recanto' : o)).join('');
+document.getElementById('filters-modelo').innerHTML = [[MD.B3,'Básico (3 portas)'],[MD.B4,'Básico P. Esquerda (4 portas)'],[MD.A3,'Antigo Básico (3 portas)'],[MD.A4,'Antigo P. Esquerda (4 portas)'],[MD.MN,'MINI (Zebrinha)']].map(m => chk('chk-modelo', m[0], m[1])).join('');
 
-            <div>
-                <div class="filter-section-header">
-                    <span class="sectors-column-title">Operação</span>
-                    <div class="btn-action-group">
-                        <button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-operacao', true)">Todos</button>
-                        <button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-operacao', false)">Nenhum</button>
-                    </div>
-                </div>
-                <div class="filter-list" id="filters-operacao">
-                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="Brazlândia" checked> Brazlândia</label>
-                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="Pinheiros" checked> Pinheiros</label>
-                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="Estrutural" checked> Estrutural</label>
-                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="QNR" checked> QNR</label>
-                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="M Norte" checked> M Norte</label>
-                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="Setor O" checked> Setor O</label>
-                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="Guará" checked> Guará</label>
-                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="Riacho Fundo" checked> Riacho Fundo</label>
-                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="Samambaia" checked> Samambaia</label>
-                    <label class="filter-item"><input type="checkbox" class="chk-operacao" value="Recanto das Emas" checked> Recanto</label>
-                    <label class="filter-item" style="color: #b91c1c;"><input type="checkbox" class="chk-operacao" value="Reserva" checked> <b>Reserva</b></label>
-                </div>
-            </div>
-        </div>
+// ---- paradas / camadas ----
+const chkStops = document.getElementById('chk-show-stops');
+chkStops.checked = localStorage.getItem('showStops') === 'true';
+chkStops.addEventListener('change', (e) => { localStorage.setItem('showStops', e.target.checked); triggerRenderLines(); });
 
-        <div class="divider"></div>
+const savedLayer = localStorage.getItem('lastMapLayer') || "Padrão";
+const tiles = {
+  "Padrão": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 22, maxNativeZoom: 19 }),
+  "Híbrido": L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { subdomains: ['mt0','mt1','mt2','mt3'], maxZoom: 22, maxNativeZoom: 20 }),
+  "Satélite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 22, maxNativeZoom: 19 })
+};
+const map = L.map('map', { zoomControl: false, closePopupOnClick: false, doubleClickZoom: false, maxZoom: 22 }).setView([-15.7942, -47.8822], 12);
+(tiles[savedLayer] || tiles["Padrão"]).addTo(map);
+L.control.layers(tiles, null, { position: 'topleft' }).addTo(map);
+map.on('baselayerchange', (e) => localStorage.setItem('lastMapLayer', e.name));
 
-        <div class="filter-section-header">
-            <span class="panel-title">Modelos de Ônibus</span>
-            <div class="btn-action-group">
-                <button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-modelo', true)">Todos</button>
-                <button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-modelo', false)">Nenhum</button>
-            </div>
-        </div>
-        <div style="display:flex; flex-direction:column; gap:4px;">
-            <label class="filter-item"><input type="checkbox" class="chk-modelo" value="Básico (3 portas)" checked> Básico (3 portas)</label>
-            <label class="filter-item"><input type="checkbox" class="chk-modelo" value="Básico Porta Esquerda (4 portas)" checked> Básico P. Esquerda (4 portas)</label>
-            <label class="filter-item"><input type="checkbox" class="chk-modelo" value="Antigo Básico (3 portas)" checked> Antigo Básico (3 portas)</label>
-            <label class="filter-item"><input type="checkbox" class="chk-modelo" value="Antigo Básico Porta Esquerda (4 portas)" checked> Antigo P. Esquerda (4 portas)</label>
-            <label class="filter-item"><input type="checkbox" class="chk-modelo" value="MINI (Zebrinha)" checked> MINI (Zebrinha)</label>
-        </div>
+const controlPanel = document.getElementById('control-panel');
+const btnToggleFilters = document.getElementById('btn-toggle-filters');
+btnToggleFilters.addEventListener('click', (e) => { e.stopPropagation(); controlPanel.classList.toggle('open'); });
+document.getElementById('btn-close-panel').addEventListener('click', () => controlPanel.classList.remove('open'));
+controlPanel.addEventListener('click', (e) => e.stopPropagation());
 
-        <div class="divider"></div>
+let markers = {}, busDataRaw = [], activeRouteLayers = [], activeStops = [], termosBusca = [];
+let itemSelecionado = null, highlightedIndex = -1, currentOpenPopup = null, renderLinesToken = 0, debounceRenderTimer = null;
 
-        <div class="filter-section-header">
-            <span class="panel-title">Status Operacional</span>
-            <div class="btn-action-group">
-                <button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-status', true)">Todos</button>
-                <button class="btn-action-chip" onclick="setGroupCheckboxes('.chk-status', false)">Nenhum</button>
-            </div>
-        </div>
-        <div class="filter-grid">
-            <label class="filter-item"><input type="checkbox" class="chk-status" id="chk-com-linha" checked> Com Linha</label>
-            <label class="filter-item"><input type="checkbox" class="chk-status" id="chk-sem-linha" checked> Sem Linha</label>
-            <label class="filter-item"><input type="checkbox" class="chk-status" id="chk-transferencia" checked> Transf.</label>
-            <label class="filter-item"><input type="checkbox" class="chk-status" id="chk-VNR" checked> VNR</label>
-        </div>
-    </div>
+function setGroupCheckboxes(selector, checked) {
+  document.querySelectorAll(selector).forEach(c => c.checked = checked);
+  render(); triggerRenderLines(); updateAppliedFiltersBadgeStack();
+}
 
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script>
-        const API_URL = "https://gps-bsbus.vercel.app/veiculos";
-        const BSBUS_GREEN = "#4dff00";
-        const BSBUS_GOLD = "#e1b74b";
+// ---- especificações do veículo ----
+function getVehicleCore(prefixo) {
+  if (!prefixo) return null;
+  const p = String(prefixo).trim();
+  if (p.toUpperCase() === "VNR") return "VNR";
+  if (p.startsWith('7') && p.length >= 6) return parseInt(p.substring(1, p.length - 1), 10);
+  if (p.startsWith('50') && p.length >= 5) return parseInt(p.substring(2, p.length - 1), 10);
+  const n = parseInt(p.replace(/\D/g, ''), 10);
+  return isNaN(n) ? null : n;
+}
 
-        const TODAS_LINHAS_EMPRESA = [
-            "0.005", "0.038", "0.039", "0.041", "0.047", "0.049", "0.053", "0.092", "0.159", "0.310",
-            "0.311", "0.312", "0.313", "0.322", "0.323", "0.324", "0.330", "0.331", "0.332", "0.333",
-            "0.334", "0.335", "0.338", "0.341", "0.343", "0.346", "0.348", "0.350", "0.353", "0.360",
-            "0.362", "0.364", "0.368", "0.370", "0.371", "0.372", "0.374", "0.375", "0.377", "0.379",
-            "0.382", "0.385", "0.393", "0.397", "0.400", "0.401", "0.402", "0.403", "0.404", "0.405",
-            "0.406", "0.410", "0.411", "0.413", "0.414", "0.415", "0.416", "0.420", "0.421", "0.423",
-            "0.424", "0.450", "0.551", "0.553", "0.556", "0.557", "0.558", "0.805", "0.808", "0.812",
-            "0.818", "0.841", "0.842", "0.844", "0.845", "0.873", "0.876", "0.878", "0.883", "0.886",
-            "0.906", "0.907", "0.911", "0.913", "0.918", "0.920", "0.921", "0.926", "0.927", "0.928",
-            "0.929", "0.930", "0.934", "0.946", "0.949", "0.953", "0.956", "0.957", "0.958", "0.960",
-            "0.962", "0.963", "0.965", "0.966", "084.1", "086.1", "154.7", "157.5", "157.8", "157.9",
-            "158.2", "158.4", "158.5", "158.6", "158.8", "313.1", "313.2", "322.1", "322.2", "323.1",
-            "323.2", "324.1", "332.1", "333.1", "333.2", "333.6", "333.7", "333.8", "333.9", "334.4",
-            "335.1", "338.1", "343.2", "346.1", "348.1", "350.1", "359.1", "359.2", "364.1", "364.2",
-            "364.3", "364.4", "364.5", "364.7", "368.1", "372.2", "372.3", "372.9", "374.1", "374.2",
-            "379.1", "379.2", "382.1", "384.1", "389.1", "393.4", "397.2", "398.1", "398.3", "400.2",
-            "401.1", "401.5", "402.5", "402.7", "406.1", "409.1", "411.1", "411.2", "413.2", "413.4",
-            "414.1", "416.1", "416.2", "416.3", "423.1", "557.1", "805.3", "808.1", "808.5", "812.1",
-            "812.2", "818.1", "844.3", "845.2", "872.1", "872.3", "920.4", "926.1", "928.1", "928.2",
-            "928.3", "929.1", "929.2", "929.3", "929.4", "929.5", "949.1", "963.1", "965.1", "965.2"
-        ];
+// [de, até, modelo, garagem, operação]  (a primeira regra que casa vale)
+const REGRAS = [
+  [1,33,'B3','Brazlândia','Brazlândia'],[34,56,'B3','Pinheiros','Pinheiros'],[57,65,'B3','Pinheiros','Estrutural'],[66,69,'B3','Pinheiros','Reserva'],
+  [70,194,'B3','QNR','QNR'],[195,205,'B3','QNR','Reserva'],[206,232,'B3','Setor O','M Norte'],[233,333,'B3','Setor O','Setor O'],
+  [334,334,'B3','Setor O','Recanto das Emas'],[335,335,'B3','Setor O','Riacho Fundo'],[336,346,'B3','Setor O','Reserva'],
+  [347,353,'B3','Guará','Guará'],[354,382,'B3','Guará','Estrutural'],[383,384,'B3','Guará','Reserva'],
+  [460,460,'B4','Recanto das Emas','Recanto das Emas'],[461,469,'B4','Recanto das Emas','Samambaia'],[470,471,'B4','Recanto das Emas','Reserva'],
+  [472,488,'B4','QNR','QNR'],[489,491,'B4','QNR','Reserva'],[492,502,'B4','Setor O','M Norte'],[503,506,'B4','Setor O','Reserva'],
+  [1033,1067,'A4','Setor O','Setor O'],[1068,1071,'A4','Setor O','Reserva'],[1072,1080,'A4','Brazlândia','Reserva'],[1081,1092,'A4','Brazlândia','Brazlândia'],
+  [1094,1094,'A3','Setor O','Setor O'],[1093,1097,'A3','Setor O','Estrutural'],[1098,1100,'A3','Setor O','Reserva'],
+  [1101,1101,'A3','Brazlândia','Reserva'],[1102,1129,'A3','Brazlândia','Brazlândia'],
+  [1130,1131,'MN','Guará','Estrutural'],[1132,1132,'MN','Guará','Reserva']
+];
+const RIACHO_FUNDO = [385,386,413,420,421,423,425,430];
+const SAMAMBAIA = [387,388,389,390,391,392,393,394,396,422,431,435,436,437,439,443,444,449];
 
-        const itinerarioCache = new Map();
+function getVehicleSpecs(prefixo) {
+  const core = getVehicleCore(prefixo);
+  if (core === "VNR") return { modelo: "Veículo Não Regular", manutencao: "Outro", operacao: "Reserva", core: "VNR" };
+  if (core === null) return { modelo: "Indefinido", manutencao: "Outro", operacao: "Outro", core: "--" };
+  if (core >= 385 && core <= 459) {
+    let op = 'Recanto das Emas';
+    if (core >= 453) op = 'Reserva';
+    else if (RIACHO_FUNDO.includes(core)) op = 'Riacho Fundo';
+    else if (SAMAMBAIA.includes(core)) op = 'Samambaia';
+    return { modelo: MD.B3, manutencao: 'Recanto das Emas', operacao: op, core };
+  }
+  const r = REGRAS.find(x => core >= x[0] && core <= x[1]);
+  return r ? { modelo: MD[r[2]], manutencao: r[3], operacao: r[4], core } : { modelo: "Outro", manutencao: "Outro", operacao: "Outro", core };
+}
 
-        // Paradas
-        const savedStopsState = localStorage.getItem('showStops') === 'true';
-        const chkStops = document.getElementById('chk-show-stops');
-        if (chkStops) {
-            chkStops.checked = savedStopsState;
-            chkStops.addEventListener('change', (e) => {
-                localStorage.setItem('showStops', e.target.checked);
-                triggerRenderLines();
-            });
+// ---- utilitários ----
+function decodePolyline(encoded) {
+  if (!encoded) return [];
+  let poly = [], index = 0, len = encoded.length, lat = 0, lng = 0;
+  while (index < len) {
+    let b, shift = 0, result = 0;
+    do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    lat += ((result & 1) ? ~(result >> 1) : (result >> 1));
+    shift = 0; result = 0;
+    do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    lng += ((result & 1) ? ~(result >> 1) : (result >> 1));
+    poly.push([lat / 1e5, lng / 1e5]);
+  }
+  return poly;
+}
+function parseDateBR(d, h) { if (!d) return new Date(); const p = d.split('/'); return new Date(`${p[2]}-${p[1]}-${p[0]}T${h}`); }
+function getLiveStatus(d, h) {
+  let diff = Math.floor((new Date() - parseDateBR(d, h)) / 1000);
+  if (diff < 0) diff = 0;
+  const dd = Math.floor(diff / 86400), hh = Math.floor((diff % 86400) / 3600), mm = Math.floor((diff % 3600) / 60), ss = diff % 60;
+  if (dd > 0) return `${dd}d ${hh}h ${mm}m ${ss}s atrás`;
+  if (hh > 0) return `${hh}h ${mm}m ${ss}s atrás`;
+  if (mm > 0) return `${mm}min ${ss}seg atrás`;
+  return `${ss} seg atrás`;
+}
+function createStopIcon(n) {
+  return L.divIcon({ className: '', html: `<div class="icon-map" style="pointer-events:auto"><div class="placa-azul-map"><div class="borda-map"><div class="info-placa-map">${n}</div></div></div><div class="poste-map"></div></div>`, iconSize: [32, 47], iconAnchor: [16, 47], popupAnchor: [0, -40] });
+}
+
+// ---- busca ----
+const searchInput = document.getElementById('search');
+searchInput.addEventListener('input', (e) => {
+  const val = e.target.value.toLowerCase().trim();
+  highlightedIndex = -1;
+  document.getElementById('btn-search-clear').classList.toggle('visible', val.length > 0);
+  if (!val) { document.getElementById('suggestions').style.display = 'none'; return; }
+  const live = busDataRaw.flatMap(v => [v.linha, v.prefixo]);
+  const matches = Array.from(new Set([...TODAS_LINHAS_EMPRESA, ...live])).filter(x => x && String(x).toLowerCase().includes(val))
+    .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })).slice(0, 30);
+  document.getElementById('suggestions').innerHTML = matches.map((m, i) => `<div class="suggestion-item" data-index="${i}" onclick="selectSuggestion('${m}')"><span>${m}</span></div>`).join('');
+  document.getElementById('suggestions').style.display = matches.length ? 'block' : 'none';
+});
+searchInput.addEventListener('keydown', (e) => {
+  const items = document.getElementById('suggestions').getElementsByClassName('suggestion-item');
+  if (e.key === 'ArrowDown') { e.preventDefault(); highlightedIndex = (highlightedIndex + 1) % items.length; updateHighlight(items); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); highlightedIndex = (highlightedIndex - 1 + items.length) % items.length; updateHighlight(items); }
+  else if (e.key === 'Enter') { e.preventDefault(); if (highlightedIndex > -1 && items[highlightedIndex]) items[highlightedIndex].click(); else if (items.length > 0) items[0].click(); }
+  else if (e.key === 'Escape') limparBuscaInput();
+});
+function updateHighlight(items) {
+  Array.from(items).forEach((el, i) => { el.classList.toggle('highlighted', i === highlightedIndex); if (i === highlightedIndex) el.scrollIntoView({ block: 'nearest' }); });
+}
+function selectSuggestion(val) {
+  if (!termosBusca.includes(val)) {
+    termosBusca.push(val);
+    const tag = document.createElement('div');
+    tag.className = 'tag'; tag.onclick = (ev) => removerTag(ev, val);
+    tag.innerHTML = `${val} <span>✕</span>`;
+    document.getElementById('search-tags').appendChild(tag);
+  }
+  limparBuscaInput(); render(); triggerRenderLines(); updateAppliedFiltersBadgeStack();
+}
+function removerTag(e, val) {
+  if (e) e.stopPropagation();
+  termosBusca = termosBusca.filter(t => t !== val);
+  Array.from(document.getElementById('search-tags').children).forEach(tag => { if (tag.textContent.includes(val)) tag.remove(); });
+  render(); triggerRenderLines(); updateAppliedFiltersBadgeStack();
+}
+function limparBuscaInput() {
+  searchInput.value = '';
+  document.getElementById('suggestions').style.display = 'none';
+  highlightedIndex = -1;
+  document.getElementById('btn-search-clear').classList.remove('visible');
+}
+
+// ---- traçados ----
+async function fetchItinerarioData(linha) {
+  if (!linha || linha === "0.001") return null;
+  if (itinerarioCache.has(linha)) return itinerarioCache.get(linha);
+  try {
+    const res = await fetch(`https://gps-bsbus.vercel.app/itinerario/${linha}`);
+    const data = await res.json();
+    if (data && data.itinerarios) { itinerarioCache.set(linha, data); return data; }
+  } catch (err) { console.error(`Erro no itinerario da linha ${linha}:`, err); }
+  return null;
+}
+function clearRouteLayers() {
+  activeRouteLayers.forEach(l => map.removeLayer(l)); activeRouteLayers = [];
+  activeStops.forEach(s => map.removeLayer(s)); activeStops = [];
+}
+function triggerRenderLines() { clearTimeout(debounceRenderTimer); debounceRenderTimer = setTimeout(renderLines, 100); }
+
+function addStops(itin, linha) {
+  if (!document.getElementById('chk-show-stops').checked || !itin.stops) return;
+  itin.stops.forEach((stop, idx) => {
+    const s = L.marker([stop.lat, stop.lng], { icon: createStopIcon(idx + 1), zIndexOffset: 500 });
+    s.bindPopup(`<b>Parada ${idx + 1} | Linha ${linha}</b><br>${stop.name}`, { className: 'popup-parada', minWidth: 200, maxWidth: 350, autoPan: false });
+    hoverPopup(s);
+    s.addTo(map); activeStops.push(s);
+  });
+}
+
+async function renderLines() {
+  const token = ++renderLinesToken;
+  clearRouteLayers();
+
+  if (itemSelecionado && itemSelecionado.linha) {           // veículo clicado
+    const data = await fetchItinerarioData(itemSelecionado.linha);
+    if (token !== renderLinesToken || !data || !data.itinerarios) return;
+    const dir = String(itemSelecionado.sentido).toLowerCase().includes('volta') ? 1 : 0;
+    const itin = data.itinerarios.find(i => i.directionId === dir) || data.itinerarios[0];
+    if (itin && itin.shape) {
+      const c = decodePolyline(itin.shape);
+      activeRouteLayers.push(L.polyline(c, { color: '#000', weight: 8, opacity: 1, interactive: false }).addTo(map),
+                             L.polyline(c, { color: BSBUS_GREEN, weight: 4, opacity: 1, interactive: false }).addTo(map));
+      addStops(itin, itemSelecionado.linha);
+    }
+    return;
+  }
+
+  if (termosBusca.length !== 1) return;                     // só 1 linha pesquisada
+  const t = termosBusca[0];
+  let linha = TODAS_LINHAS_EMPRESA.find(l => l === t || l.includes(t));
+  if (!linha) { const m = busDataRaw.find(v => v.linha && v.linha.includes(t)); if (m) linha = m.linha; }
+  if (!linha) return;
+
+  const data = await fetchItinerarioData(linha);
+  if (token !== renderLinesToken || !data || !data.itinerarios) return;
+  data.itinerarios.forEach(itin => {
+    if (itin.shape) {
+      const c = decodePolyline(itin.shape);
+      activeRouteLayers.push(L.polyline(c, { color: '#000', weight: 6, opacity: 1, interactive: false }).addTo(map),
+                             L.polyline(c, { color: itin.directionId === 0 ? BSBUS_GREEN : '#38bdf8', weight: 3.5, opacity: 1, interactive: false }).addTo(map));
+    }
+    addStops(itin, linha);
+  });
+}
+
+// ---- dados (o render() vem do bloco "monitor" logo abaixo) ----
+async function fetchData() {
+  try {
+    const r = await fetch(API_URL, { cache: 'no-store' });
+    const json = await r.json();
+    busDataRaw = json.veiculos || [];
+    render();
+  } catch (e) { console.error("Erro ao buscar dados:", e); }
+}
+
+// ---- filtros aplicados (tags) ----
+function updateAppliedFiltersBadgeStack() {
+  const stack = document.getElementById('applied-filters-stack');
+  stack.innerHTML = '';
+  [['.chk-manutencao', 'Garagem'], ['.chk-operacao', 'Op'], ['.chk-modelo', 'Mod']].forEach(([sel, nome]) => {
+    const all = document.querySelectorAll(sel), on = document.querySelectorAll(sel + ':checked');
+    if (on.length > 0 && on.length < all.length) on.forEach(c => {
+      const b = document.createElement('div');
+      b.className = 'applied-tag'; b.innerHTML = `${nome}: ${c.value} ✕`;
+      b.onclick = () => { c.checked = false; render(); triggerRenderLines(); updateAppliedFiltersBadgeStack(); };
+      stack.appendChild(b);
+    });
+  });
+}
+
+// popup que abre no hover, continua aberto enquanto o mouse estiver nele (dá pra copiar) e fixa no clique
+function hoverPopup(m, o) {
+  o = o || {};
+  m.off('click', m._openPopup, m);
+  const fechar = () => { clearTimeout(m._t); m._t = setTimeout(() => {
+    const p = m.getPopup(), el = p && p.getElement();
+    if (m._pin || (o.naoFechar && o.naoFechar()) || (el && el.matches(':hover'))) return;
+    m.closePopup(); }, 250); };
+  m.on('mouseover', () => { clearTimeout(m._t); if (!o.podeAbrir || o.podeAbrir()) m.openPopup(); });
+  m.on('mouseout', fechar);
+  m.on('click', () => { m.openPopup(); m._pin = true; });
+  m.on('popupclose', () => { m._pin = false; });
+  m.on('popupopen', (e) => { const el = e.popup.getElement(); if (el && !el._h) { el._h = 1; el.addEventListener('mouseenter', () => clearTimeout(m._t)); el.addEventListener('mouseleave', fechar); } });
+}
+// 1 clique no mapa (sem arrastar) desfaz a seleção; arrastar/zoom não fecha nada
+function limparSelecao() {
+  const tinha = !!itemSelecionado;
+  itemSelecionado = null; map.closePopup(); currentOpenPopup = null;
+  if (tinha) { clearRouteLayers(); render(); triggerRenderLines(); }
+}
+
+// ---- eventos do mapa ----
+map.on('click', () => { controlPanel.classList.remove('open'); limparSelecao(); });
+map.on('dblclick', () => {
+  itemSelecionado = null; controlPanel.classList.remove('open'); map.closePopup(); currentOpenPopup = null;
+  clearRouteLayers(); render(); triggerRenderLines();
+});
+setInterval(() => {
+  for (const id in markers) {
+    const el = document.getElementById(`stat-${id}`);
+    if (el && markers[id].vData) el.innerText = getLiveStatus(markers[id].vData.data, markers[id].vData.hora);
+  }
+}, 1000);
+document.querySelectorAll('.control-panel input[type=checkbox]').forEach(c => c.addEventListener('change', () => { render(); triggerRenderLines(); updateAppliedFiltersBadgeStack(); }));
+
+fetchData();
+updateAppliedFiltersBadgeStack();
+setInterval(fetchData, 10000);
+</script>
+
+<!-- ===== MONITOR (ícones, fora de rota, sem linha, painel) ===== -->
+<script>
+
+(function () {
+  'use strict';
+
+  // ---------- CONFIG ----------
+  const ICON_DIR = 'icons';
+  const LOGO_URL = 'icons/logo/onibus-bsbus.png';
+  const RAIO_FORA_ROTA_M = 150;        // raio aceito ao redor da polyline
+  const RAIO_SENTIDO_INVERTIDO_M = 60; // perto da rota do sentido oposto => sentido trocado
+  const LEITURAS_PARA_ALERTA = 2;      // leituras seguidas fora do raio antes de alertar
+  const FATIA_MS = 12;                 // tempo máx. por fatia de cálculo (evita travar)
+  const DOWNLOADS_SIMULTANEOS = 6;
+  const RETRY_FALHA_MS = 60000;
+  const MIN_MOVE_M = 8;                // movimento mínimo para recalcular rumo
+  const STALE_MIN = 30;                // minutos sem sinal => ícone semitransparente
+  const ESCONDER_BADGE_ABAIXO_ZOOM = 12;
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  const statusRota = {};   // prefixo -> { linha, dir, cont, fora, motivo, dist, semItin }
+  const shapeCache = new Map();
+  const falhas = new Map();
+  const heads = {};        // prefixo -> { pos, heading }
+  let resumo = null, ultimaVerificacao = 0, checando = false, pendente = false, ultimaLista = null, progresso = '';
+
+  // ---------- CSS ----------
+  const css = `
+  :root{--alerta:#ff0000;--laranja:#ea580c;--zebra:#c73931}
+  .brand-logo{width:30px;height:30px;border-radius:8px;object-fit:contain;flex:none}
+  .leaflet-container{--bus-size:44px;--badge-fs:11px}
+
+  .bus-pin{position:absolute;left:0;top:0;width:0;height:0}
+  .bus-img{position:absolute;left:calc(var(--bus-size)/-2);top:calc(var(--bus-size)/-2);width:var(--bus-size);height:var(--bus-size);object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
+  .bus-badge{position:absolute;left:0;top:calc(var(--bus-size)/2 - 9px);transform:translateX(-50%);background:var(--cor-bsbus);border:2px solid #000;color:#000;font-weight:900;font-size:var(--badge-fs);padding:5px 7px;border-radius:6px;white-space:nowrap;box-shadow:0 2px 5px rgba(0,0,0,.5)}
+  .bus-pin.p7 .bus-badge{background:var(--cor-prefixo-7)}
+  .bus-pin.zebra .bus-badge{background:var(--zebra);color:#fff}
+  .p-header.zebra{border-bottom-color:var(--zebra)!important}
+  .leaflet-popup-content,.popup-parada .leaflet-popup-content{user-select:text;-webkit-user-select:text;cursor:text}
+  .bus-excl{display:none;position:absolute;left:calc(var(--bus-size) / 2 - 25px);top:calc(var(--bus-size) / -2 + 1px);width:18px;height:18px;border-radius:50%;background:var(--alerta);color:#fff;border:2px solid #fff;font-size:12px;font-weight:900;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+  .bus-pin.fora .bus-excl,.bus-pin.sentido .bus-excl,.bus-pin.semlinha .bus-excl{display:flex}
+  .bus-pin.fora .bus-badge,.bus-pin.sentido .bus-badge{border:3px solid var(--alerta);animation:monPulso 1.6s infinite}
+  .bus-pin.semlinha .bus-badge{background:var(--alerta);border-color:#7f1d1d;color:#fff}
+  .hide-badges .bus-pin:not(.fora):not(.sentido):not(.semlinha) .bus-badge{display:none}
+  @keyframes monPulso{0%{box-shadow:0 0 0 0 rgba(255,0,0,.7)}70%{box-shadow:0 0 0 10px rgba(255,0,0,0)}100%{box-shadow:0 0 0 0 rgba(255,0,0,0)}}
+
+  .p-alerta{background:rgba(255,0,0,.1);color:var(--alerta);border-radius:8px;padding:5px 8px;margin-bottom:6px;font-size:12px;font-weight:700;text-align:center}
+  .p-header.alerta{border-bottom-color:var(--alerta)!important}
+
+  .mon-fab{position:fixed;left:68px;bottom:max(20px,env(safe-area-inset-bottom));z-index:999;height:40px;border:none;border-radius:24px;padding:10px 14px;background:#fff;color:#166534;font-weight:800;font-size:13px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow);cursor:pointer;max-width:calc(100vw - 250px)}
+  .mon-fab span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mon-dot{width:10px;height:10px;border-radius:50%;background:#22c55e;flex:none}
+  .mon-fab.alerta{background:var(--alerta);color:#fff}
+  .mon-fab.alerta .mon-dot{background:#fff}
+  .mon-panel{display:none;position:fixed;left:15px;bottom:calc(max(20px,env(safe-area-inset-bottom)) + 62px);width:min(380px,calc(100vw - 30px));max-height:min(60vh,520px);flex-direction:column;background:#fff;border-radius:16px;box-shadow:var(--shadow);z-index:998;overflow:hidden}
+  .mon-panel.open{display:flex}
+  .mon-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px 2px;font-weight:800;font-size:15px;color:var(--text-main)}
+  .mon-x{border:none;background:#f1f5f9;width:30px;height:30px;border-radius:50%;cursor:pointer;font-weight:800;color:var(--text-sec)}
+  .mon-sub{padding:0 14px 8px;font-size:11px;color:var(--text-sec);font-weight:600}
+  .mon-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 14px 8px}
+  .mon-chip{border-radius:10px;padding:6px 2px;text-align:center;background:#f1f5f9}
+  .mon-chip b{display:block;font-size:17px;font-weight:800;line-height:1.1}
+  .mon-chip small{font-size:9px;font-weight:700;color:var(--text-sec)}
+  .mon-chip.ok b{color:#16a34a}.mon-chip.fora b,.mon-chip.sl b{color:var(--alerta)}.mon-chip.sent b{color:var(--laranja)}
+  .mon-row{display:flex;justify-content:space-between;align-items:center;padding:6px 14px 10px;font-size:13px;font-weight:700;color:var(--text-main)}
+  .mon-list{overflow-y:auto;border-top:1px solid var(--border);flex:1;min-height:0}
+  .mon-item{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid #f1f5f9;cursor:pointer}
+  .mon-item:active{background:#f8fafc}
+  .mon-badge{flex:none;width:24px;height:24px;border-radius:50%;background:var(--alerta);color:#fff;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center}
+  .mon-badge.sentido{background:var(--laranja)}
+  .mon-main{flex:1;min-width:0;font-size:13px;color:var(--text-main);font-weight:800}
+  .mon-main small{display:block;font-size:11px;color:var(--text-sec);font-weight:600;margin-top:1px}
+  .mon-empty{padding:18px 14px;text-align:center;font-size:13px;color:#16a34a;font-weight:700}
+
+  @media (max-width:600px){
+    .mon-panel{left:0;right:0;bottom:0;width:100%;max-height:68vh;border-radius:18px 18px 0 0;padding-bottom:env(safe-area-inset-bottom);z-index:1200}
+    .toggle-stops-container{top:auto;bottom:calc(max(20px,env(safe-area-inset-bottom)) + 52px);right:15px}
+    .applied-filters-stack{bottom:calc(max(20px,env(safe-area-inset-bottom)) + 110px)}
+  }`;
+  const st = document.createElement('style');
+  st.textContent = css;
+  document.head.appendChild(st);
+
+  // ---------- HTML do monitor ----------
+  document.body.insertAdjacentHTML('beforeend', `
+    <button class="mon-fab" id="mon-fab"><span class="mon-dot"></span><span id="mon-fab-text">Verificando rotas…</span></button>
+    <section class="mon-panel" id="mon-panel">
+      <div class="mon-head"><span>Monitor de rotas</span><button class="mon-x" id="mon-close">✕</button></div>
+      <div class="mon-sub" id="mon-sub">Aguardando dados…</div>
+      <div class="mon-stats" id="mon-stats"></div>
+      <div class="mon-row"><span>Mostrar só perdidos no mapa<small style="display:block;font-size:10px;color:var(--text-sec);font-weight:600">veículos que retornam só o prefixo (sem linha)</small></span><label class="switch"><input type="checkbox" id="chk-so-perdidos"><span class="slider"></span></label></div>
+      <div class="mon-row"><span>Mostrar só linhas fora de rota<small style="display:block;font-size:10px;color:var(--text-sec);font-weight:600">veículos fora do raio da rota ou com sentido trocado</small></span><label class="switch"><input type="checkbox" id="chk-so-fora"><span class="slider"></span></label></div>
+      <div class="mon-list" id="mon-list"></div>
+    </section>`);
+
+  // ---------- Título e logo ----------
+  document.title = 'BsBus - GPS';
+  const fav = document.createElement('link');
+  fav.rel = 'icon'; fav.href = LOGO_URL;
+  document.head.appendChild(fav);
+  const sc = document.querySelector('.search-container');
+  if (sc) {
+    const img = new Image();
+    img.className = 'brand-logo'; img.alt = 'BsBus';
+    img.onload = () => { const s = sc.querySelector('svg'); if (s) s.replaceWith(img); };
+    img.src = LOGO_URL;
+  }
+
+  // =====================================================================
+  //  ESTADO DO VEÍCULO
+  // =====================================================================
+  const ehVNR = (v) => String(v.prefixo).trim().toUpperCase() === 'VNR';
+  const linhaTxt = (v) => String(v.linha || '').trim();
+  const linhaRota = (v) => { const l = linhaTxt(v); return (!l || l === '0.001' || ehVNR(v)) ? '' : l; };
+  const dirDe = (v) => (String(v.sentido || '').toLowerCase().includes('volta') ? 1 : 0);
+
+  function estadoDe(v) {
+    if (ehVNR(v)) return 'vnr';
+    const l = linhaTxt(v);
+    if (!l) return 'semlinha';
+    if (l === '0.001') return 'transf';
+    const s = statusRota[v.prefixo];
+    // só vale se o diagnóstico foi feito para a MESMA linha/sentido de agora
+    if (s && s.fora && s.linha === l && s.dir === dirDe(v)) return s.motivo === 'sentido' ? 'sentido' : 'fora';
+    return 'ok';
+  }
+
+  // =====================================================================
+  //  DETECÇÃO FORA DE ROTA (sem loops longos)
+  // =====================================================================
+  function carregarItin(linha) {
+    return fetch('https://gps-bsbus.vercel.app/itinerario/' + linha)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d && d.itinerarios) { itinerarioCache.set(linha, d); falhas.delete(linha); }
+        else falhas.set(linha, Date.now());
+      })
+      .catch(() => falhas.set(linha, Date.now()));
+  }
+
+  // download em "pool", sem loop com await
+  function baixar(linhas, max) {
+    return new Promise((resolve) => {
+      let prox = 0, ativos = 0;
+      const lancar = () => {
+        if (prox >= linhas.length && ativos === 0) return resolve();
+        while (ativos < max && prox < linhas.length) {
+          const l = linhas[prox++]; ativos++;
+          carregarItin(l).then(() => { ativos--; lancar(); });
         }
+      };
+      lancar();
+    });
+  }
 
-        // Camadas
-        const savedLayer = localStorage.getItem('lastMapLayer') || "Padrão";
-        const tiles = {
-            "Padrão": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
-            "Híbrido": L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }),
-            "Satélite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}')
-        };
+  // processa a lista em fatias curtas, devolvendo o controle ao navegador entre elas
+  function emFatias(lista, fn, onProg, fim) {
+    let i = 0;
+    (function passo() {
+      const t0 = performance.now();
+      while (i < lista.length && performance.now() - t0 < FATIA_MS) fn(lista[i++]);
+      if (onProg) onProg(i, lista.length);
+      if (i < lista.length) setTimeout(passo, 0); else fim();
+    })();
+  }
 
-        const map = L.map('map', { 
-            zoomControl: false, 
-            closePopupOnClick: false,
-            doubleClickZoom: false
-        }).setView([-15.7942, -47.8822], 12);
-        
-        (tiles[savedLayer] || tiles["Padrão"]).addTo(map);
-        L.control.layers(tiles, null, { position: 'bottomleft' }).addTo(map);
-        map.on('baselayerchange', (e) => localStorage.setItem('lastMapLayer', e.name));
+  function shapeDe(linha, dir) {
+    const key = linha + '|' + dir;
+    if (shapeCache.has(key)) return shapeCache.get(key);
+    const d = itinerarioCache.get(linha);
+    if (!d) return null;
+    const its = d.itinerarios || [];
+    const it = its.find((i) => i.directionId === dir) || (its.length === 1 ? its[0] : null);
+    const c = it && it.shape ? decodePolyline(it.shape) : null;
+    const ok = c && c.length > 1 ? c : null;
+    shapeCache.set(key, ok);
+    return ok;
+  }
 
-        // Drawer
-        const controlPanel = document.getElementById('control-panel');
-        const btnToggleFilters = document.getElementById('btn-toggle-filters');
-        const btnClosePanel = document.getElementById('btn-close-panel');
+  function distM(lat, lng, coords, parar) {
+    const rad = Math.PI / 180, R = 6371000;
+    const kx = Math.cos(lat * rad) * R * rad, ky = R * rad;
+    let min = Infinity;
+    for (let i = 0; i < coords.length - 1; i++) {
+      const ax = (coords[i][1] - lng) * kx, ay = (coords[i][0] - lat) * ky;
+      const bx = (coords[i + 1][1] - lng) * kx, by = (coords[i + 1][0] - lat) * ky;
+      if ((ax > min && bx > min) || (ax < -min && bx < -min) || (ay > min && by > min) || (ay < -min && by < -min)) continue;
+      const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy;
+      let t = len2 ? -(ax * dx + ay * dy) / len2 : 0;
+      t = Math.max(0, Math.min(1, t));
+      const d = Math.hypot(ax + t * dx, ay + t * dy);
+      if (d < min) { min = d; if (parar !== undefined && min <= parar) return min; }
+    }
+    return min;
+  }
 
-        btnToggleFilters.addEventListener('click', (e) => {
-            e.stopPropagation();
-            controlPanel.classList.toggle('open');
+  function verificar(v) {
+    const linha = linhaRota(v);
+    if (!linha) { delete statusRota[v.prefixo]; return; }
+    const dir = dirDe(v);
+    let s = statusRota[v.prefixo];
+    if (!s || s.linha !== linha || s.dir !== dir) s = statusRota[v.prefixo] = { linha, dir, cont: 0, fora: false, motivo: null, dist: 0, semItin: false };
+    if (!Number.isFinite(v.latitude) || !Number.isFinite(v.longitude)) return;
+    const coords = shapeDe(linha, dir);
+    if (!coords) { s.semItin = true; s.fora = false; s.cont = 0; return; }
+    s.semItin = false;
+    const d = distM(v.latitude, v.longitude, coords, RAIO_FORA_ROTA_M);
+    s.dist = d;
+    if (d > RAIO_FORA_ROTA_M) {
+      s.cont++; s.motivo = 'rota';
+      const op = shapeDe(linha, 1 - dir);
+      if (op && distM(v.latitude, v.longitude, op, RAIO_SENTIDO_INVERTIDO_M) <= RAIO_SENTIDO_INVERTIDO_M) s.motivo = 'sentido';
+    } else { s.cont = 0; s.motivo = null; }
+    s.fora = s.cont >= LEITURAS_PARA_ALERTA;
+  }
+
+  function checarRotas() {
+    if (checando) { pendente = true; return; }
+    checando = true;
+    const lista = busDataRaw.slice();
+    const vivos = new Set(lista.map((v) => v.prefixo));
+    Object.keys(statusRota).forEach((p) => { if (!vivos.has(p)) delete statusRota[p]; });
+
+    const agora = Date.now();
+    const faltam = Array.from(new Set(lista.map(linhaRota).filter(Boolean)))
+      .filter((l) => !itinerarioCache.has(l) && !(falhas.has(l) && agora - falhas.get(l) < RETRY_FALHA_MS));
+
+    const conferir = () => emFatias(lista, verificar,
+      (i, n) => { progresso = i < n ? 'Verificando ' + i + '/' + n + '…' : ''; subTexto(); },
+      finalizar);
+
+    if (faltam.length) { progresso = 'Baixando ' + faltam.length + ' itinerário(s)…'; subTexto(); baixar(faltam, DOWNLOADS_SIMULTANEOS).then(conferir); }
+    else conferir();
+  }
+
+  function finalizar() {
+    const r = { ok: 0, fora: 0, sentido: 0, semlinha: 0, outros: 0, semItin: 0 };
+    busDataRaw.forEach((v) => {
+      const e = estadoDe(v);
+      if (e === 'ok') { const s = statusRota[v.prefixo]; if (s && s.semItin) r.semItin++; else r.ok++; }
+      else if (e === 'fora') r.fora++;
+      else if (e === 'sentido') r.sentido++;
+      else if (e === 'semlinha') r.semlinha++;
+      else r.outros++;
+    });
+    resumo = r; ultimaVerificacao = Date.now(); progresso = '';
+    checando = false;
+    window.render();              // atualiza badges/ícones/popups com o novo diagnóstico
+    atualizarPainel();
+    if (pendente) { pendente = false; checarRotas(); }
+  }
+
+  // =====================================================================
+  //  ÍCONES / MARCADORES
+  // =====================================================================
+  window.busImgFallback = function (img) {
+    img.onerror = null;
+    img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect x="11" y="3" width="18" height="34" rx="5" fill="#16a34a" stroke="#000" stroke-width="2"/><rect x="14" y="6" width="12" height="7" rx="2" fill="#bbf7d0"/><rect x="14" y="26" width="12" height="6" rx="2" fill="#bbf7d0"/></svg>');
+    img.style.transform = 'rotate(' + (img.dataset.rot || 0) + 'deg)';
+  };
+
+  function rumoEntre(a, b) {
+    const r = Math.PI / 180, p1 = a[0] * r, p2 = b[0] * r, dl = (b[1] - a[1]) * r;
+    const y = Math.sin(dl) * Math.cos(p2);
+    const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+    return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
+  }
+
+  function headingDe(v, pos) {
+    const h0 = heads[v.prefixo];
+    const deg = parseFloat(v.direcao);
+    let h;
+    if (!isNaN(deg)) h = (((90 - deg) % 360) + 360) % 360;
+    else if (h0) { const d = map.distance(h0.pos, pos); h = (d >= MIN_MOVE_M && d < 200) ? rumoEntre(h0.pos, pos) : h0.heading; }
+    else h = 0;
+    if (!h0 || map.distance(h0.pos, pos) >= MIN_MOVE_M) heads[v.prefixo] = { pos, heading: h };
+    else h0.heading = h;
+    return h;
+  }
+
+  function buildIcon(v, estado, ang, tipo, pasta) {
+    const linha = linhaTxt(v), txt = linha ? linha + ' / ' + v.prefixo : String(v.prefixo);
+    const html = '<div class="bus-pin ' + estado + (tipo ? ' ' + tipo : '') + '">' +
+      '<img class="bus-img" src="' + ICON_DIR + '/' + pasta + '/bus_' + String(ang).padStart(3, '0') + '.png" data-rot="' + ang + '" onerror="busImgFallback(this)" alt="">' +
+      '<div class="bus-excl">!</div><div class="bus-badge">' + esc(txt) + '</div></div>';
+    return { html, icon: L.divIcon({ className: '', iconSize: [0, 0], html }) };
+  }
+
+
+  function escala() {
+    const z = map.getZoom(), c = map.getContainer();
+    c.style.setProperty('--bus-size', (z >= 18 ? 76 : z >= 17 ? 66 : z >= 15 ? 56 : z >= 13 ? 46 : 38) + 'px');
+    c.style.setProperty('--badge-fs', (z >= 15 ? 12 : 10) + 'px');
+    c.classList.toggle('hide-badges', z < ESCONDER_BADGE_ABAIXO_ZOOM);
+  }
+
+  // mantém a seleção (clique no ônibus) com os dados mais novos
+  function sincronizarSelecao() {
+    if (!itemSelecionado) return;
+    const novo = busDataRaw.find((x) => x.prefixo === itemSelecionado.prefixo);
+    if (novo && novo !== itemSelecionado) {
+      const mudou = novo.linha !== itemSelecionado.linha || dirDe(novo) !== dirDe(itemSelecionado);
+      itemSelecionado = novo;
+      if (mudou) triggerRenderLines();
+    }
+  }
+
+  function createPopupMonitor(v, specs, tipo) {
+    const e = estadoDe(v), s = statusRota[v.prefixo];
+    let head = 'Sem Linha';
+    if (linhaTxt(v) === '0.001') head = 'TRANSFERÊNCIA';
+    else if (ehVNR(v)) head = 'VNR';
+    else if (linhaTxt(v)) head = 'Linha ' + linhaTxt(v);
+    const aviso = e === 'semlinha' ? '⚠ Veículo sem linha no sistema'
+      : e === 'fora' ? '⚠ Fora da rota (a ' + Math.round(s.dist) + ' m)'
+      : e === 'sentido' ? '⚠ Sentido possivelmente invertido no sistema' : '';
+    const row = (l, val) => '<div class="p-row"><span class="p-label">' + l + '</span><span class="p-val">' + val + '</span></div>';
+    return '<div class="p-header ' + (tipo || '') + ' ' + (aviso ? 'alerta' : '') + '">' + esc(head) + '</div><div class="p-body">' +
+      (aviso ? '<div class="p-alerta">' + aviso + '</div>' : '') +
+      row('Prefixo', esc(v.prefixo)) + row('Modelo', esc(specs.modelo)) + row('Manutenção', esc(specs.manutencao)) + row('Operação', esc(specs.operacao)) +
+      row('Sentido', esc(v.sentido || '--')) + row('Data', esc(v.data || '--')) + row('Hora', esc(v.hora || '--')) +
+      '<div class="p-row"><span class="p-label">Status</span><span class="p-val" id="stat-' + esc(v.prefixo) + '">' + getLiveStatus(v.data, v.hora) + '</span></div>' +
+      '<div class="divider"></div>' + row('Data Prev.', esc(v.dataProgramada || '--')) + row('Horário Prev.', esc(v.horaProgramada || '--')) + '</div>';
+  }
+
+  function renderMonitor() {
+    const sel = (s) => Array.from(document.querySelectorAll(s + ':checked')).map((c) => c.value);
+    const manut = sel('.chk-manutencao'), oper = sel('.chk-operacao'), mods = sel('.chk-modelo');
+    const showLine = $('chk-com-linha').checked, showNoLine = $('chk-sem-linha').checked;
+    const showTransfer = $('chk-transferencia').checked, showVNR = $('chk-VNR').checked;
+    const soSem = $('chk-so-perdidos').checked, soFora = $('chk-so-fora').checked;
+    sincronizarSelecao();
+    const ids = new Set();
+
+    busDataRaw.forEach((v) => {
+      if (!Number.isFinite(v.latitude) || !Number.isFinite(v.longitude) || (!v.latitude && !v.longitude)) return;
+      const specs = getVehicleSpecs(v.prefixo);
+      const linha = linhaTxt(v);
+      const isTransfer = linha === '0.001';
+      const isVNR = ehVNR(v) || specs.core === 'VNR';
+      const hasLine = !!linha && !isTransfer;
+
+      if (itemSelecionado) {
+        if (itemSelecionado.linha && v.linha !== itemSelecionado.linha) return;
+        if (!itemSelecionado.linha && v.prefixo !== itemSelecionado.prefixo) return;
+      }
+      if (!isVNR) {
+        if (manut.length && !manut.includes(specs.manutencao)) return;
+        if (oper.length && !oper.includes(specs.operacao)) return;
+        if (mods.length && !mods.includes(specs.modelo)) return;
+      }
+      if (termosBusca.length > 0) {
+        const ok = termosBusca.some((t) => (v.prefixo && v.prefixo.includes(t)) || (v.linha && v.linha.includes(t)));
+        if (!ok) return;
+      }
+      if (isTransfer && !showTransfer) return;
+      if (isVNR && !showVNR) return;
+      if (hasLine && !showLine) return;
+      if (!linha && !showNoLine && !isVNR) return;
+
+      const estado = estadoDe(v);
+      const alerta = estado === 'fora' || estado === 'sentido' || estado === 'semlinha';
+      if ((soSem || soFora) && !((soSem && estado === 'semlinha') || (soFora && (estado === 'fora' || estado === 'sentido')))) return;
+
+      ids.add(v.prefixo);
+      const pos = [v.latitude, v.longitude], core = specs.core, p = String(v.prefixo).trim();
+      const zebra = core === 1130 || core === 1131 || core === 1132;
+      const marrom = p.startsWith('7') || (typeof core === 'number' && core >= 1 && core <= 33);
+      const tipo = zebra ? 'zebra' : marrom ? 'p7' : '';
+      const pasta = zebra ? 'icones_vermelho' : marrom ? 'icones_marrom' : 'icones_verde';
+      const ang = (Math.round(headingDe(v, pos) / 5) * 5) % 360;
+      const b = buildIcon(v, estado, ang, tipo, pasta);
+      const stale = ((Date.now() - parseDateBR(v.data, v.hora).getTime()) / 60000) > STALE_MIN;
+
+      let m = markers[v.prefixo];
+      if (m) {
+        m.setLatLng(pos);
+        m.vData = v; m.specs = specs; m.tipo = tipo;
+        if (m._html !== b.html) { m.setIcon(b.icon); m._html = b.html; }   // qualquer mudança visual (linha, estado, cor, rumo) refaz o ícone
+        const pp = m.getPopup();
+        if (pp && pp.isOpen()) pp.update();
+      } else {
+        m = L.marker(pos, { icon: b.icon }).addTo(map);
+        m._html = b.html; m.vData = v; m.specs = specs; m.tipo = tipo;
+        m.bindPopup((layer) => createPopupMonitor(layer.vData, layer.specs, layer.tipo), { autoClose: false, closeOnClick: false, autoPan: false });
+        hoverPopup(m, { podeAbrir: () => !itemSelecionado, naoFechar: () => itemSelecionado && itemSelecionado.prefixo === m.vData.prefixo });
+        m.on('click', () => {
+          if (itemSelecionado && itemSelecionado.prefixo === m.vData.prefixo) { limparSelecao(); return; }   // 1 clique no selecionado = fecha
+          if (currentOpenPopup && currentOpenPopup.isOpen()) map.closePopup(currentOpenPopup);
+          itemSelecionado = m.vData;
+          window.render(); triggerRenderLines();
+          m.openPopup(); currentOpenPopup = m.getPopup();
         });
-        btnClosePanel.addEventListener('click', () => controlPanel.classList.remove('open'));
-        controlPanel.addEventListener('click', (e) => e.stopPropagation());
-
-        let markers = {};
-        let busDataRaw = [];
-        let activeRouteLayers = [];
-        let activeStops = []; 
-        let termosBusca = [];
-        let itemSelecionado = null;
-        let highlightedIndex = -1;
-        let currentOpenPopup = null;
-        let renderLinesToken = 0;
-        let debounceRenderTimer = null;
-
-        // ==========================================
-        // MARCAR / DESMARCAR GRUPOS
-        // ==========================================
-        function setGroupCheckboxes(selector, checked) {
-            document.querySelectorAll(selector).forEach(c => c.checked = checked);
-            render();
-            triggerRenderLines();
-            updateAppliedFiltersBadgeStack();
-        }
-
-        // ==========================================
-        // CORE E ESPECIFICAÇÕES
-        // ==========================================
-        function getVehicleCore(prefixo) {
-            if (!prefixo) return null;
-            const pStr = String(prefixo).trim();
-            if (pStr.toUpperCase() === "VNR") return "VNR";
-
-            if (pStr.startsWith('7') && pStr.length >= 6) {
-                return parseInt(pStr.substring(1, pStr.length - 1), 10);
-            }
-            if (pStr.startsWith('50') && pStr.length >= 5) {
-                return parseInt(pStr.substring(2, pStr.length - 1), 10);
-            }
-
-            const numOnly = parseInt(pStr.replace(/\D/g, ''), 10);
-            return isNaN(numOnly) ? null : numOnly;
-        }
-
-        function getVehicleSpecs(prefixo) {
-            const core = getVehicleCore(prefixo);
-
-            if (core === "VNR") {
-                return { modelo: "Veículo Não Regular", manutencao: "Outro", operacao: "Reserva", core: "VNR" };
-            }
-            if (core === null) {
-                return { modelo: "Indefinido", manutencao: "Outro", operacao: "Outro", core: "--" };
-            }
-
-            // Básico (3 portas)
-            if (core >= 1 && core <= 33) return { modelo: "Básico (3 portas)", manutencao: "Brazlândia", operacao: "Brazlândia", core };
-            if (core >= 34 && core <= 56) return { modelo: "Básico (3 portas)", manutencao: "Pinheiros", operacao: "Pinheiros", core };
-            if (core >= 57 && core <= 65) return { modelo: "Básico (3 portas)", manutencao: "Pinheiros", operacao: "Estrutural", core };
-            if (core >= 66 && core <= 69) return { modelo: "Básico (3 portas)", manutencao: "Pinheiros", operacao: "Reserva", core };
-            if (core >= 70 && core <= 194) return { modelo: "Básico (3 portas)", manutencao: "QNR", operacao: "QNR", core };
-            if (core >= 195 && core <= 205) return { modelo: "Básico (3 portas)", manutencao: "QNR", operacao: "Reserva", core };
-            if (core >= 206 && core <= 232) return { modelo: "Básico (3 portas)", manutencao: "Setor O", operacao: "M Norte", core };
-            if (core >= 233 && core <= 333) return { modelo: "Básico (3 portas)", manutencao: "Setor O", operacao: "Setor O", core };
-            if (core === 334) return { modelo: "Básico (3 portas)", manutencao: "Setor O", operacao: "Recanto das Emas", core };
-            if (core === 335) return { modelo: "Básico (3 portas)", manutencao: "Setor O", operacao: "Riacho Fundo", core };
-            if (core >= 336 && core <= 346) return { modelo: "Básico (3 portas)", manutencao: "Setor O", operacao: "Reserva", core };
-            if (core >= 347 && core <= 353) return { modelo: "Básico (3 portas)", manutencao: "Guará", operacao: "Guará", core };
-            if (core >= 354 && core <= 382) return { modelo: "Básico (3 portas)", manutencao: "Guará", operacao: "Estrutural", core };
-            if (core >= 383 && core <= 384) return { modelo: "Básico (3 portas)", manutencao: "Guará", operacao: "Reserva", core };
-
-            // Recanto das Emas (Básico 3 portas)
-            const riachoFundo = [385, 386, 413, 420, 421, 423, 425, 430];
-            const samambaia = [387, 388, 389, 390, 391, 392, 393, 394, 396, 422, 431, 435, 436, 437, 439, 443, 444, 449];
-            if (core >= 385 && core <= 459) {
-                if (core >= 453 && core <= 459) return { modelo: "Básico (3 portas)", manutencao: "Recanto das Emas", operacao: "Reserva", core };
-                if (riachoFundo.includes(core)) return { modelo: "Básico (3 portas)", manutencao: "Recanto das Emas", operacao: "Riacho Fundo", core };
-                if (samambaia.includes(core)) return { modelo: "Básico (3 portas)", manutencao: "Recanto das Emas", operacao: "Samambaia", core };
-                return { modelo: "Básico (3 portas)", manutencao: "Recanto das Emas", operacao: "Recanto das Emas", core };
-            }
-
-            // Básico Porta Esquerda (4 portas)
-            if (core === 460) return { modelo: "Básico Porta Esquerda (4 portas)", manutencao: "Recanto das Emas", operacao: "Recanto das Emas", core };
-            if (core >= 461 && core <= 469) return { modelo: "Básico Porta Esquerda (4 portas)", manutencao: "Recanto das Emas", operacao: "Samambaia", core };
-            if (core >= 470 && core <= 471) return { modelo: "Básico Porta Esquerda (4 portas)", manutencao: "Recanto das Emas", operacao: "Reserva", core };
-            if (core >= 472 && core <= 488) return { modelo: "Básico Porta Esquerda (4 portas)", manutencao: "QNR", operacao: "QNR", core };
-            if (core >= 489 && core <= 491) return { modelo: "Básico Porta Esquerda (4 portas)", manutencao: "QNR", operacao: "Reserva", core };
-            if (core >= 492 && core <= 502) return { modelo: "Básico Porta Esquerda (4 portas)", manutencao: "Setor O", operacao: "M Norte", core };
-            if (core >= 503 && core <= 506) return { modelo: "Básico Porta Esquerda (4 portas)", manutencao: "Setor O", operacao: "Reserva", core };
-
-            // Antigo Básico Porta Esquerda (4 portas)
-            if (core >= 1033 && core <= 1067) return { modelo: "Antigo Básico Porta Esquerda (4 portas)", manutencao: "Setor O", operacao: "Setor O", core };
-            if (core >= 1068 && core <= 1071) return { modelo: "Antigo Básico Porta Esquerda (4 portas)", manutencao: "Setor O", operacao: "Reserva", core };
-            if (core >= 1072 && core <= 1080) return { modelo: "Antigo Básico Porta Esquerda (4 portas)", manutencao: "Brazlândia", operacao: "Reserva", core };
-            if (core >= 1081 && core <= 1092) return { modelo: "Antigo Básico Porta Esquerda (4 portas)", manutencao: "Brazlândia", operacao: "Brazlândia", core };
-
-            // Antigo Básico (3 portas)
-            if (core >= 1093 && core <= 1097 && core !== 1094) return { modelo: "Antigo Básico (3 portas)", manutencao: "Setor O", operacao: "Estrutural", core };
-            if (core === 1094) return { modelo: "Antigo Básico (3 portas)", manutencao: "Setor O", operacao: "Setor O", core };
-            if (core >= 1098 && core <= 1100) return { modelo: "Antigo Básico (3 portas)", manutencao: "Setor O", operacao: "Reserva", core };
-            if (core === 1101) return { modelo: "Antigo Básico (3 portas)", manutencao: "Brazlândia", operacao: "Reserva", core };
-            if (core >= 1102 && core <= 1129) return { modelo: "Antigo Básico (3 portas)", manutencao: "Brazlândia", operacao: "Brazlândia", core };
-
-            // MINI (Zebrinha)
-            if (core >= 1130 && core <= 1131) return { modelo: "MINI (Zebrinha)", manutencao: "Guará", operacao: "Estrutural", core };
-            if (core === 1132) return { modelo: "MINI (Zebrinha)", manutencao: "Guará", operacao: "Reserva", core };
-
-            return { modelo: "Outro", manutencao: "Outro", operacao: "Outro", core };
-        }
-
-        function decodePolyline(encoded) {
-            if (!encoded) return [];
-            let poly = [], index = 0, len = encoded.length, lat = 0, lng = 0;
-            while (index < len) {
-                let b, shift = 0, result = 0;
-                do {
-                    b = encoded.charCodeAt(index++) - 63;
-                    result |= (b & 0x1f) << shift;
-                    shift += 5;
-                } while (b >= 0x20);
-                let dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
-                lat += dlat;
-                shift = 0; result = 0;
-                do {
-                    b = encoded.charCodeAt(index++) - 63;
-                    result |= (b & 0x1f) << shift;
-                    shift += 5;
-                } while (b >= 0x20);
-                let dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
-                lng += dlng;
-                poly.push([lat / 1e5, lng / 1e5]);
-            }
-            return poly;
-        }
-
-        function parseDateBR(dataStr, horaStr) {
-            if(!dataStr) return new Date();
-            const p = dataStr.split('/');
-            return new Date(`${p[2]}-${p[1]}-${p[0]}T${horaStr}`);
-        }
-
-        function getLiveStatus(dataStr, horaStr) {
-            const last = parseDateBR(dataStr, horaStr);
-            const now = new Date();
-            let diff = Math.floor((now - last) / 1000);
-            if (diff < 0) diff = 0;
-            const dd = Math.floor(diff / 86400), hh = Math.floor((diff % 86400) / 3600), mm = Math.floor((diff % 3600) / 60), ss = diff % 60;
-            if (dd > 0) return `${dd}d ${hh}h ${mm}m ${ss}s atrás`;
-            if (hh > 0) return `${hh}h ${mm}m ${ss}s atrás`;
-            if (mm > 0) return `${mm}min ${ss}seg atrás`;
-            return `${ss} seg atrás`;
-        }
-
-        function createStopIcon(numero) {
-            return L.divIcon({
-                className: '',
-                html: `
-                    <div class="icon-map" style="pointer-events: auto;">
-                        <div class="placa-azul-map">
-                            <div class="borda-map">
-                                <div class="info-placa-map">${numero}</div>
-                            </div>
-                        </div>
-                        <div class="poste-map"></div>
-                    </div>
-                `,
-                iconSize: [32, 47],
-                iconAnchor: [16, 47],
-                popupAnchor: [0, -40]
-            });
-        }
-
-        // ==========================================
-        // BUSCA
-        // ==========================================
-        const searchInput = document.getElementById('search');
-        searchInput.addEventListener('input', (e) => {
-            const val = e.target.value.toLowerCase().trim();
-            highlightedIndex = -1;
-            document.getElementById('btn-search-clear').classList.toggle('visible', val.length > 0);
-            if (!val) { document.getElementById('suggestions').style.display = 'none'; return; }
-            
-            const liveTerms = busDataRaw.flatMap(v => [v.linha, v.prefixo]);
-            const matches = Array.from(new Set([...TODAS_LINHAS_EMPRESA, ...liveTerms]))
-                .filter(x => x && String(x).toLowerCase().includes(val))
-                .sort((a,b) => String(a).localeCompare(String(b), undefined, {numeric: true}))
-                .slice(0, 30);
-
-            document.getElementById('suggestions').innerHTML = matches.map((m, i) => `
-                <div class="suggestion-item" data-index="${i}" onclick="selectSuggestion('${m}')">
-                    <span>${m}</span>
-                </div>
-            `).join('');
-            document.getElementById('suggestions').style.display = matches.length ? 'block' : 'none';
-        });
-
-        searchInput.addEventListener('keydown', (e) => {
-            const sugBox = document.getElementById('suggestions');
-            const items = sugBox.getElementsByClassName('suggestion-item');
-            if (e.key === 'ArrowDown') { e.preventDefault(); highlightedIndex = (highlightedIndex + 1) % items.length; updateHighlight(items); }
-            else if (e.key === 'ArrowUp') { e.preventDefault(); highlightedIndex = (highlightedIndex - 1 + items.length) % items.length; updateHighlight(items); }
-            else if (e.key === 'Enter') { 
-                e.preventDefault(); 
-                if (highlightedIndex > -1 && items[highlightedIndex]) items[highlightedIndex].click(); 
-                else if (items.length > 0) items[0].click(); 
-            }
-            else if (e.key === 'Escape') { limparBuscaInput(); }
-        });
-
-        function updateHighlight(items) {
-            Array.from(items).forEach((el, i) => {
-                el.classList.toggle('highlighted', i === highlightedIndex);
-                if (i === highlightedIndex) el.scrollIntoView({ block: 'nearest' });
-            });
-        }
-
-        function selectSuggestion(val) {
-            if (!termosBusca.includes(val)) {
-                termosBusca.push(val);
-                const tag = document.createElement('div');
-                tag.className = 'tag';
-                tag.onclick = (event) => removerTag(event, val);
-                tag.innerHTML = `${val} <span>✕</span>`;
-                document.getElementById('search-tags').appendChild(tag);
-            }
-            limparBuscaInput();
-            render();
-            triggerRenderLines();
-            updateAppliedFiltersBadgeStack();
-        }
-
-        function removerTag(e, val) {
-            if (e) e.stopPropagation();
-            termosBusca = termosBusca.filter(t => t !== val);
-            const tags = document.getElementById('search-tags');
-            Array.from(tags.children).forEach(tag => { 
-                if (tag.textContent.includes(val)) tag.remove(); 
-            });
-            render();
-            triggerRenderLines();
-            updateAppliedFiltersBadgeStack();
-        }
-
-        function limparBuscaInput() {
-            searchInput.value = '';
-            document.getElementById('suggestions').style.display = 'none';
-            highlightedIndex = -1;
-            document.getElementById('btn-search-clear').classList.remove('visible');
-        }
-
-        // ==========================================
-        // TRAÇADOS SEGUROS
-        // ==========================================
-        async function fetchItinerarioData(linha) {
-            if (!linha || linha === "0.001") return null;
-            if (itinerarioCache.has(linha)) return itinerarioCache.get(linha);
-
-            try {
-                const res = await fetch(`https://gps-bsbus.vercel.app/itinerario/${linha}`);
-                const data = await res.json();
-                if (data && data.itinerarios) {
-                    itinerarioCache.set(linha, data);
-                    return data;
-                }
-            } catch (err) {
-                console.error(`Erro no itinerario da linha ${linha}:`, err);
-            }
-            return null;
-        }
-
-        function clearRouteLayers() {
-            activeRouteLayers.forEach(l => map.removeLayer(l));
-            activeRouteLayers = [];
-            activeStops.forEach(s => map.removeLayer(s));
-            activeStops = [];
-        }
-
-        function triggerRenderLines() {
-            clearTimeout(debounceRenderTimer);
-            debounceRenderTimer = setTimeout(renderLines, 100);
-        }
-
-        async function renderLines() {
-            const thisToken = ++renderLinesToken;
-            clearRouteLayers();
-
-            const showStops = document.getElementById('chk-show-stops').checked;
-
-            // 1. Veículo selecionado por clique no Badge
-            if (itemSelecionado && itemSelecionado.linha) {
-                const data = await fetchItinerarioData(itemSelecionado.linha);
-                if (thisToken !== renderLinesToken || !data || !data.itinerarios) return;
-
-                const isVolta = String(itemSelecionado.sentido).toLowerCase().includes('volta');
-                const targetDirection = isVolta ? 1 : 0;
-                const itin = data.itinerarios.find(i => i.directionId === targetDirection) || data.itinerarios[0];
-
-                if (itin && itin.shape) {
-                    const coords = decodePolyline(itin.shape);
-                    const b = L.polyline(coords, { color: '#000000', weight: 8, opacity: 1.0, interactive: false }).addTo(map);
-                    const r = L.polyline(coords, { color: BSBUS_GREEN, weight: 4, opacity: 1.0, interactive: false }).addTo(map);
-                    activeRouteLayers.push(b, r);
-
-                    if (showStops && itin.stops) {
-                        itin.stops.forEach((stop, idx) => {
-                            const sMarker = L.marker([stop.lat, stop.lng], { icon: createStopIcon(idx + 1), zIndexOffset: 500 });
-                            sMarker.bindPopup(`<b>Parada ${idx + 1} | Linha ${itemSelecionado.linha}</b><br>${stop.name}`, { className: 'popup-parada', minWidth: 200, maxWidth: 350, autoPan: false });
-                            sMarker.on('mouseover', (e) => e.target.openPopup());
-                            sMarker.on('mouseout', (e) => e.target.closePopup());
-                            sMarker.addTo(map);
-                            activeStops.push(sMarker);
-                        });
-                    }
-                }
-                return;
-            }
-
-            // 2. Busca Ativa: Plota o traçado SOMENTE se houver exatamente 1 linha pesquisada
-            if (termosBusca.length !== 1) {
-                return;
-            }
-
-            const t = termosBusca[0];
-            let linhaParaPlotar = null;
-
-            const matchOficial = TODAS_LINHAS_EMPRESA.find(l => l === t || l.includes(t));
-            if (matchOficial) {
-                linhaParaPlotar = matchOficial;
-            } else {
-                const matchLive = busDataRaw.find(v => v.linha && v.linha.includes(t));
-                if (matchLive) linhaParaPlotar = matchLive.linha;
-            }
-
-            if (!linhaParaPlotar) return;
-
-            const data = await fetchItinerarioData(linhaParaPlotar);
-            if (thisToken !== renderLinesToken || !data || !data.itinerarios) return;
-
-            data.itinerarios.forEach(itin => {
-                if (itin.shape) {
-                    const coords = decodePolyline(itin.shape);
-                    const b = L.polyline(coords, { color: '#000000', weight: 6, opacity: 1.0, interactive: false }).addTo(map);
-                    const r = L.polyline(coords, { 
-                        color: itin.directionId === 0 ? BSBUS_GREEN : '#38bdf8', 
-                        weight: 3.5, 
-                        opacity: 1.0,
-                        interactive: false 
-                    }).addTo(map);
-                    activeRouteLayers.push(b, r);
-                }
-
-                if (showStops && itin.stops) {
-                    itin.stops.forEach((stop, idx) => {
-                        const sMarker = L.marker([stop.lat, stop.lng], { icon: createStopIcon(idx + 1), zIndexOffset: 500 });
-                        sMarker.bindPopup(`<b>Parada ${idx + 1} | Linha ${linhaParaPlotar}</b><br>${stop.name}`, { className: 'popup-parada', minWidth: 200, maxWidth: 350, autoPan: false });
-                        sMarker.on('mouseover', (e) => e.target.openPopup());
-                        sMarker.on('mouseout', (e) => e.target.closePopup());
-                        sMarker.addTo(map);
-                        activeStops.push(sMarker);
-                    });
-                }
-            });
-        }
-
-        // ==========================================
-        // DADOS E FILTRAGEM INTELIGENTE
-        // ==========================================
-        async function fetchData() {
-            try {
-                const r = await fetch(API_URL);
-                const json = await r.json();
-                busDataRaw = json.veiculos || [];
-                render();
-            } catch (e) { console.error("Erro ao buscar dados:", e); }
-        }
-
-        function render() {
-            const checkedManutencao = Array.from(document.querySelectorAll('.chk-manutencao:checked')).map(c => c.value);
-            const checkedOperacao = Array.from(document.querySelectorAll('.chk-operacao:checked')).map(c => c.value);
-            const checkedModelos = Array.from(document.querySelectorAll('.chk-modelo:checked')).map(c => c.value);
-
-            const showLine = document.getElementById('chk-com-linha').checked;
-            const showNoLine = document.getElementById('chk-sem-linha').checked;
-            const showTransfer = document.getElementById('chk-transferencia').checked;
-            const showVNR = document.getElementById('chk-VNR').checked;
-            const currentIds = new Set();
-
-            const hasManutFilter = checkedManutencao.length > 0;
-            const hasOpFilter = checkedOperacao.length > 0;
-            const hasModelFilter = checkedModelos.length > 0;
-
-            busDataRaw.forEach(v => {
-                const specs = getVehicleSpecs(v.prefixo);
-                const isTransfer = String(v.linha).trim() === "0.001";
-                const isVNR = String(v.prefixo).trim() === "VNR" || specs.core === "VNR";
-                const hasLine = v.linha && v.linha.trim() !== "" && !isTransfer;
-
-                // Foco em linha de veículo clicado
-                if (itemSelecionado) {
-                    if (itemSelecionado.linha && v.linha !== itemSelecionado.linha) return;
-                    if (!itemSelecionado.linha && v.prefixo !== itemSelecionado.prefixo) return;
-                }
-
-                // Filtragem tolerante e combinada
-                if (!isVNR) {
-                    if (hasManutFilter && !checkedManutencao.includes(specs.manutencao)) return;
-                    if (hasOpFilter && !checkedOperacao.includes(specs.operacao)) return;
-                    if (hasModelFilter && !checkedModelos.includes(specs.modelo)) return;
-                }
-
-                // Busca por texto
-                if (termosBusca.length > 0) {
-                    const match = termosBusca.some(t => 
-                        (v.prefixo && v.prefixo.includes(t)) || 
-                        (v.linha && v.linha.includes(t))
-                    );
-                    if (!match) return;
-                }
-
-                // Status Operacional
-                if (isTransfer && !showTransfer) return;
-                if (isVNR && !showVNR) return;
-                if (hasLine && !showLine) return;
-                if (!v.linha || v.linha.trim() === "") {
-                    if (!showNoLine && !isVNR) return;
-                }
-
-                currentIds.add(v.prefixo);
-                const pos = [v.latitude, v.longitude];
-                
-                // Amarelo para Prefixo 7 OU Core de 001 a 033
-                const isPrefixo7 = String(v.prefixo).trim().startsWith('7');
-                const isCore1a33 = typeof specs.core === 'number' && specs.core >= 1 && specs.core <= 33;
-                const isYellowBadge = isPrefixo7 || isCore1a33;
-
-                if (markers[v.prefixo]) {
-                    markers[v.prefixo].setLatLng(pos);
-                    markers[v.prefixo].vData = v;
-                    markers[v.prefixo].specs = specs;
-                    if (markers[v.prefixo].isPopupOpen()) {
-                        markers[v.prefixo].setPopupContent(createPopup(v, specs, isYellowBadge));
-                    }
-                } else {
-                    const icon = L.divIcon({
-                        className: '',
-                        html: `<div class="bus-marker-wrapper"><div class="bus-marker-custom ${isYellowBadge ? 'p7' : ''}">${v.linha && v.linha.trim() !== "" ? v.linha : v.prefixo}</div></div>`,
-                        iconSize: [0, 0]
-                    });
-                    
-                    const m = L.marker(pos, { icon, zIndexOffset: 2000 }).addTo(map);
-                    m.vData = v;
-                    m.specs = specs;
-
-                    const popup = L.popup({ autoClose: false, closeOnClick: false, autoPan: false }).setContent(createPopup(v, specs, isYellowBadge));
-                    m.bindPopup(popup);
-                    
-                    m.on('mouseover', function() {
-                        if (!itemSelecionado) {
-                            this.openPopup();
-                        }
-                    });
-
-                    m.on('mouseout', function() {
-                        if (!itemSelecionado || itemSelecionado.prefixo !== v.prefixo) {
-                            this.closePopup();
-                        }
-                    });
-
-                    m.on('click', (e) => {
-                        L.DomEvent.stopPropagation(e);
-
-                        if (currentOpenPopup && currentOpenPopup.isOpen()) {
-                            map.closePopup(currentOpenPopup);
-                        }
-
-                        itemSelecionado = v;
-                        render();
-                        triggerRenderLines();
-
-                        m.openPopup();
-                        currentOpenPopup = m.getPopup();
-                    });
-
-                    m.on('popupclose', function() {
-                        if (currentOpenPopup === m.getPopup()) {
-                            currentOpenPopup = null;
-                        }
-                    });
-
-                    markers[v.prefixo] = m;
-                }
-            });
-
-            for (let id in markers) {
-                if (!currentIds.has(id)) { 
-                    map.removeLayer(markers[id]); 
-                    delete markers[id]; 
-                }
-            }
-        }
-
-        // ==========================================
-        // POPUP
-        // ==========================================
-        function createPopup(v, specs, isYellowBadge) {
-            let headerText = 'Sem Linha';
-            if (String(v.linha).trim() === "0.001") {
-                headerText = 'TRANSFERÊNCIA';
-            } else if (String(v.prefixo).trim() === "VNR") {
-                headerText = 'VNR';
-            } else if (v.linha && v.linha.trim() !== "") {
-                headerText = 'Linha ' + v.linha;
-            }
-
-            return `
-                <div class="p-header ${isYellowBadge ? 'p7' : ''}">${headerText}</div>
-                <div class="p-body">
-                    <div class="p-row"><span class="p-label">Prefixo</span><span class="p-val">${v.prefixo}</span></div>
-                    <div class="p-row"><span class="p-label">Modelo</span><span class="p-val">${specs.modelo}</span></div>
-                    <div class="p-row"><span class="p-label">Manutenção</span><span class="p-val">${specs.manutencao}</span></div>
-                    <div class="p-row"><span class="p-label">Operação</span><span class="p-val">${specs.operacao}</span></div>
-                    <div class="p-row"><span class="p-label">Sentido</span><span class="p-val">${v.sentido || '--'}</span></div>
-                    <div class="p-row"><span class="p-label">Data</span><span class="p-val">${v.data || '--'}</span></div>
-                    <div class="p-row"><span class="p-label">Hora</span><span class="p-val">${v.hora || '--'}</span></div>
-                    <div class="p-row"><span class="p-label">Status</span><span class="p-val" id="stat-${v.prefixo}">${getLiveStatus(v.data, v.hora)}</span></div>
-                    <div class="divider"></div>
-                    <div class="p-row"><span class="p-label">Data Prev.</span><span class="p-val">${v.dataProgramada || '--'}</span></div>
-                    <div class="p-row"><span class="p-label">Horário Prev.</span><span class="p-val">${v.horaProgramada || '--'}</span></div>
-                </div>
-            `;
-        }
-
-        // ==========================================
-        // EMPILHAMENTO DOS FILTROS APLICADOS
-        // ==========================================
-        function updateAppliedFiltersBadgeStack() {
-            const stack = document.getElementById('applied-filters-stack');
-            stack.innerHTML = '';
-
-            const allManut = document.querySelectorAll('.chk-manutencao');
-            const checkedManut = document.querySelectorAll('.chk-manutencao:checked');
-            if (checkedManut.length > 0 && checkedManut.length < allManut.length) {
-                checkedManut.forEach(chk => {
-                    const b = document.createElement('div');
-                    b.className = 'applied-tag';
-                    b.innerHTML = `Garagem: ${chk.value} ✕`;
-                    b.onclick = () => {
-                        chk.checked = false;
-                        render();
-                        triggerRenderLines();
-                        updateAppliedFiltersBadgeStack();
-                    };
-                    stack.appendChild(b);
-                });
-            }
-
-            const allOp = document.querySelectorAll('.chk-operacao');
-            const checkedOp = document.querySelectorAll('.chk-operacao:checked');
-            if (checkedOp.length > 0 && checkedOp.length < allOp.length) {
-                checkedOp.forEach(chk => {
-                    const b = document.createElement('div');
-                    b.className = 'applied-tag';
-                    b.innerHTML = `Op: ${chk.value} ✕`;
-                    b.onclick = () => {
-                        chk.checked = false;
-                        render();
-                        triggerRenderLines();
-                        updateAppliedFiltersBadgeStack();
-                    };
-                    stack.appendChild(b);
-                });
-            }
-
-            const allMod = document.querySelectorAll('.chk-modelo');
-            const checkedMod = document.querySelectorAll('.chk-modelo:checked');
-            if (checkedMod.length > 0 && checkedMod.length < allMod.length) {
-                checkedMod.forEach(chk => {
-                    const b = document.createElement('div');
-                    b.className = 'applied-tag';
-                    b.innerHTML = `Mod: ${chk.value} ✕`;
-                    b.onclick = () => {
-                        chk.checked = false;
-                        render();
-                        triggerRenderLines();
-                        updateAppliedFiltersBadgeStack();
-                    };
-                    stack.appendChild(b);
-                });
-            }
-        }
-
-        // ==========================================
-        // EVENTOS DE CLIQUE NO MAPA
-        // ==========================================
-        
-        map.on('click', () => {
-            controlPanel.classList.remove('open');
-            map.closePopup();
-            currentOpenPopup = null;
-        });
-
-        map.on('dblclick', () => {
-            itemSelecionado = null;
-            controlPanel.classList.remove('open');
-            map.closePopup();
-            currentOpenPopup = null;
-            clearRouteLayers();
-            render();
-            triggerRenderLines();
-        });
-
-        setInterval(() => {
-            for (let id in markers) {
-                const el = document.getElementById(`stat-${id}`);
-                if (el && markers[id].vData) {
-                    el.innerText = getLiveStatus(markers[id].vData.data, markers[id].vData.hora);
-                }
-            }
-        }, 1000);
-
-        document.querySelectorAll('.control-panel input[type=checkbox]').forEach(c => {
-            c.addEventListener('change', () => {
-                render();
-                triggerRenderLines();
-                updateAppliedFiltersBadgeStack();
-            });
-        });
-
-        // Inicialização
-        fetchData();
-        updateAppliedFiltersBadgeStack();
-        setInterval(fetchData, 10000);
-    </script>
-    <script src="terminais-bsbus.js"></script>
+        m.on('popupclose', function () { if (currentOpenPopup === m.getPopup()) currentOpenPopup = null; });
+        markers[v.prefixo] = m;
+      }
+      m.setZIndexOffset(alerta ? 4000 : 2000);
+      m.setOpacity(stale ? 0.5 : 1);
+    });
+
+    Object.keys(markers).forEach((id) => { if (!ids.has(id)) { map.removeLayer(markers[id]); delete markers[id]; } });
+    if (busDataRaw !== ultimaLista) { ultimaLista = busDataRaw; checarRotas(); }
+  }
+
+  // =====================================================================
+  //  PAINEL MONITOR
+  // =====================================================================
+  function subTexto() {
+    const el = $('mon-sub'); if (!el) return;
+    if (progresso) el.textContent = progresso;
+    else if (!ultimaVerificacao) el.textContent = 'Aguardando dados…';
+    else el.textContent = 'Atualizado há ' + Math.max(0, Math.floor((Date.now() - ultimaVerificacao) / 1000)) + 's · raio de ' + RAIO_FORA_ROTA_M + ' m';
+  }
+
+  function atualizarPainel() {
+    const r = resumo, fab = $('mon-fab'), txt = $('mon-fab-text');
+    if (!r) { txt.textContent = 'Verificando rotas…'; return; }
+    const perd = r.fora + r.sentido, partes = [];
+    if (perd) partes.push(perd + ' fora da rota');
+    if (r.semlinha) partes.push(r.semlinha + ' sem linha');
+    txt.textContent = partes.length ? partes.join(' · ') : 'Todos na rota';
+    fab.classList.toggle('alerta', partes.length > 0);
+    subTexto();
+    if (!$('mon-panel').classList.contains('open')) return;
+
+    $('mon-stats').innerHTML =
+      '<div class="mon-chip ok"><b>' + r.ok + '</b><small>Na rota</small></div>' +
+      '<div class="mon-chip fora"><b>' + r.fora + '</b><small>Fora</small></div>' +
+      '<div class="mon-chip sent"><b>' + r.sentido + '</b><small>Sent. errado</small></div>' +
+      '<div class="mon-chip sl"><b>' + r.semlinha + '</b><small>Sem linha</small></div>';
+
+    const peso = { sentido: 0, fora: 1, semlinha: 2 };
+    const itens = busDataRaw.map((v) => ({ v, e: estadoDe(v) })).filter((x) => x.e in peso);
+    const dist = (x) => (statusRota[x.v.prefixo] || {}).dist || 0;
+    itens.sort((a, b) => peso[a.e] - peso[b.e] || dist(b) - dist(a));
+
+    $('mon-list').innerHTML = itens.length ? itens.slice(0, 250).map((x) => {
+      const v = x.v;
+      const det = x.e === 'semlinha' ? 'Sem linha no sistema'
+        : x.e === 'sentido' ? 'Sentido possivelmente invertido · sistema: ' + esc(v.sentido)
+        : 'Fora da rota · a ' + Math.round(dist(x)) + ' m · ' + esc(v.sentido);
+      const tit = linhaTxt(v) ? 'Linha ' + esc(linhaTxt(v)) + ' · ' + esc(v.prefixo) : 'Prefixo ' + esc(v.prefixo);
+      return '<div class="mon-item" data-p="' + esc(v.prefixo) + '"><div class="mon-badge ' + (x.e === 'sentido' ? 'sentido' : '') + '">!</div>' +
+        '<div class="mon-main">' + tit + '<small>' + det + '</small></div></div>';
+    }).join('') : '<div class="mon-empty">✓ Nenhum conflito no momento</div>';
+  }
+
+  function painel(abrir) {
+    const p = $('mon-panel');
+    const open = typeof abrir === 'boolean' ? abrir : !p.classList.contains('open');
+    p.classList.toggle('open', open);
+    if (open) { controlPanel.classList.remove('open'); atualizarPainel(); }
+  }
+
+  function focar(prefixo) {
+    const v = busDataRaw.find((x) => String(x.prefixo) === String(prefixo));
+    if (!v) return;
+    itemSelecionado = v;
+    window.render(); triggerRenderLines();
+    map.flyTo([v.latitude, v.longitude], Math.max(map.getZoom(), 16), { duration: 0.6 });
+    const m = markers[v.prefixo];
+    if (m) { m.openPopup(); currentOpenPopup = m.getPopup(); }
+  }
+
+  $('mon-fab').addEventListener('click', (e) => { e.stopPropagation(); painel(); });
+  $('mon-close').addEventListener('click', () => painel(false));
+  $('mon-panel').addEventListener('click', (e) => e.stopPropagation());
+  $('mon-list').addEventListener('click', (e) => {
+    const it = e.target.closest('.mon-item'); if (!it) return;
+    focar(it.dataset.p);
+    if (window.matchMedia('(max-width:600px)').matches) painel(false);
+  });
+  map.on('click', () => painel(false));
+  btnToggleFilters.addEventListener('click', () => painel(false));
+
+  const chkP = $('chk-so-perdidos'), chkF = $('chk-so-fora');
+  [[chkP, 'soPerdidos'], [chkF, 'soFora']].forEach(([c, k]) => {
+    c.checked = localStorage.getItem(k) === 'true';
+    c.addEventListener('change', () => { localStorage.setItem(k, c.checked); window.render(); window.updateAppliedFiltersBadgeStack(); });
+  });
+  const updOriginal = window.updateAppliedFiltersBadgeStack;
+  window.updateAppliedFiltersBadgeStack = function () {
+    updOriginal();
+    [[chkP, 'soPerdidos', 'Só sem linha'], [chkF, 'soFora', 'Só fora de rota']].forEach(([c, k, nome]) => {
+      if (!c.checked) return;
+      const b = document.createElement('div');
+      b.className = 'applied-tag'; b.textContent = nome + ' ✕';
+      b.onclick = () => { c.checked = false; localStorage.setItem(k, 'false'); window.render(); window.updateAppliedFiltersBadgeStack(); };
+      $('applied-filters-stack').appendChild(b);
+    });
+  };
+
+  // =====================================================================
+  //  INICIALIZAÇÃO (substitui o render/popup originais)
+  // =====================================================================
+  window.render = renderMonitor;
+  window.createPopup = createPopupMonitor;
+  Object.keys(markers).forEach((id) => { map.removeLayer(markers[id]); delete markers[id]; }); // marcadores do render antigo
+  escala();
+  map.on('zoomend', escala);
+  setInterval(subTexto, 1000);
+  window.render();
+  window.updateAppliedFiltersBadgeStack();
+})();
+
+</script>
+<script src="terminais-bsbus.js"></script>
 </body>
 </html>
