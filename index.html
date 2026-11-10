@@ -15,7 +15,7 @@ body,html{height:100%;width:100%;overflow:hidden;background:#e5e5e5}
 .leaflet-control-attribution{display:none!important}
 .top-bar{position:absolute;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:94%;max-width:400px;z-index:1000;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
 .top-bar>*{pointer-events:auto}
-.search-container{background:#fff;width:100%;height:48px;display:flex;align-items:center;padding:0 15px;border-radius:24px;position:relative;box-shadow:var(--shadow)}
+.search-container{background:#fff;width:100%;height:48px;display:flex;align-items:center;padding:0 15px;border-radius:24px;position:relative;box-shadow:var(--shadow);margin-top:8px;}
 #search{flex:1;border:none;background:transparent;font-size:16px;outline:none;height:100%;color:var(--text-main);font-weight:500;margin-left:10px;padding-right:30px}
 .search-clear{position:absolute;right:12px;top:50%;transform:translateY(-50%);width:20px;height:20px;background:rgba(128,128,128,.2);border-radius:50%;display:none;justify-content:center;align-items:center;cursor:pointer;color:var(--text-sec);font-size:12px;font-weight:800}
 .search-clear.visible{display:flex}
@@ -27,11 +27,16 @@ body,html{height:100%;width:100%;overflow:hidden;background:#e5e5e5}
 .suggestion-item.highlighted,.suggestion-item:hover{background:rgba(37,99,235,.15);color:var(--primary);font-weight:700}
 .leaflet-top.leaflet-left{top:max(10px,env(safe-area-inset-top))!important;left:15px!important;z-index:1000}
 .leaflet-control-layers{border-radius:12px!important;box-shadow:var(--shadow)!important;background:var(--surface)!important;border:1px solid rgba(0,0,0,.1)!important}
-.applied-filters-stack{position:absolute;right:15px;bottom:80px;z-index:999;display:flex;flex-direction:column;align-items:flex-end;gap:5px;max-height:calc(100vh - 200px);overflow-y:auto;pointer-events:none}
+.applied-filters-stack{position:absolute;right:15px;bottom:120px;z-index:999;display:flex;flex-direction:column;align-items:flex-end;gap:5px;max-height:calc(100vh - 200px);overflow-y:auto;pointer-events:none}
 .applied-tag{pointer-events:auto;background:#0f172a;color:#fff;font-size:11px;font-weight:700;padding:4px 9px;border-radius:10px;display:flex;align-items:center;gap:6px;box-shadow:var(--shadow);cursor:pointer}
 .applied-tag:hover{background:#ef4444}
+
+/* Botões do canto inferior direito (Cascata de controles) */
+.toggle-controls-group{position:absolute;bottom:calc(max(20px,env(safe-area-inset-bottom)) + 50px);right:15px;z-index:1000;display:flex;flex-direction: column;gap:8px;}
+.toggle-stops-btn{background:#fff;padding:8px 12px;border-radius:24px;box-shadow:var(--shadow);display:flex;align-items:center;gap:6px;font-weight:700;font-size:12px;color:var(--text-main)}
 .btn-filter-toggle{position:absolute;bottom:max(20px,env(safe-area-inset-bottom));right:15px;z-index:1000;background:#0f172a;color:#fff;border:none;padding:10px 16px;border-radius:24px;font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;box-shadow:var(--shadow);cursor:pointer}
-.control-panel{position:absolute;bottom:max(70px,env(safe-area-inset-bottom));right:15px;width:440px;max-height:calc(100vh - 140px);background:#fff;padding:16px;border-radius:16px;box-shadow:var(--shadow);border:1px solid var(--border);z-index:1001;display:none;flex-direction:column;gap:10px;overflow-y:auto}
+
+.control-panel{position:absolute;bottom:max(70px,env(safe-area-inset-bottom));right:15px;width:440px;max-height:calc(100vh - 100px);background:#fff;padding:16px;border-radius:16px;box-shadow:var(--shadow);border:1px solid var(--border);z-index:1001;display:none;flex-direction:column;gap:10px;overflow-y:auto}
 .control-panel.open{display:flex}
 .panel-header,.filter-section-header{display:flex;justify-content:space-between;align-items:center}
 .panel-header{border-bottom:1px solid #f1f5f9;padding-bottom:6px}
@@ -62,20 +67,23 @@ body,html{height:100%;width:100%;overflow:hidden;background:#e5e5e5}
 .info-placa-map{display:flex;align-items:center;justify-content:center;background:#fff;width:21px;height:19px;margin-bottom:5px;font-size:11px;font-weight:700;border-radius:1px;color:#000}
 .poste-map{width:4px;height:10px;background:#000}
 .popup-parada .leaflet-popup-content{width:auto!important;min-width:220px;max-width:min(350px,75vw);padding:10px 18px!important;text-align:center;color:#000!important;font-weight:400!important}
-.toggle-stops-container{position:absolute;top:max(10px,env(safe-area-inset-top));right:15px;z-index:1000;background:#fff;padding:9px 14px;border-radius:25px;box-shadow:0 2px 10px rgba(0,0,0,.15);display:flex;align-items:center;gap:8px}
-.toggle-label{font-size:13px;font-weight:600;color:#333}
+.toggle-label{font-size:12px;font-weight:600;color:#333}
 .switch{position:relative;display:inline-block;width:38px;height:20px}
 .switch input{display:none}
 .slider{position:absolute;cursor:pointer;inset:0;background:#ccc;transition:.3s;border-radius:34px}
 .slider:before{position:absolute;content:"";height:14px;width:14px;left:3px;bottom:3px;background:#fff;transition:.3s;border-radius:50%}
 input:checked+.slider{background:var(--cor-bsbus)}
 input:checked+.slider:before{transform:translateX(18px)}
+
 @media(max-width:600px){
-  .top-bar{left: calc(50% + 24px); width: calc(94% - 48px); max-width: none;}
-  .control-panel{width:calc(100% - 30px)}
+  .top-bar{left: calc(50% + 35px); width: calc(100% - 90px); max-width: none;}
+  .control-panel{
+    width: calc(100% - 30px);
+    top: max(10px, env(safe-area-inset-top));
+    bottom: auto;
+    max-height: calc(100dvh - 80px);
+  }
   .sectors-layout-table{grid-template-columns:1fr}
-  .toggle-stops-container{top: calc(max(10px, env(safe-area-inset-top)) + 58px); right: 50%; transform: translateX(50%); padding:6px 12px; white-space: nowrap;}
-  .toggle-label{font-size:11px}
   .search-tags{width:94vw;max-width:94%}
 }
 </style>
@@ -93,12 +101,19 @@ input:checked+.slider:before{transform:translateX(18px)}
   <div id="suggestions" class="suggestions"></div>
 </div>
 
-<div class="toggle-stops-container">
-  <span class="toggle-label">Mostrar paradas:</span>
-  <label class="switch"><input type="checkbox" id="chk-show-stops"><span class="slider"></span></label>
-</div>
-
 <div class="applied-filters-stack" id="applied-filters-stack"></div>
+
+<!-- Botões de Controle em CASCATA no Canto Inferior Direito -->
+<div class="toggle-controls-group">
+  <div class="toggle-stops-btn">
+    <span class="toggle-label">Paradas</span>
+    <label class="switch"><input type="checkbox" id="chk-show-stops"><span class="slider"></span></label>
+  </div>
+  <div class="toggle-stops-btn">
+    <span class="toggle-label">Terminais</span>
+    <label class="switch"><input type="checkbox" id="chk-show-terminals"><span class="slider"></span></label>
+  </div>
+</div>
 
 <button class="btn-filter-toggle" id="btn-toggle-filters">
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
@@ -141,6 +156,20 @@ const BSBUS_GREEN = "#4dff00";
 
 const TODAS_LINHAS_EMPRESA = ("0.005 0.038 0.039 0.041 0.047 0.049 0.053 0.092 0.159 0.310 0.311 0.312 0.313 0.322 0.323 0.324 0.330 0.331 0.332 0.333 0.334 0.335 0.338 0.341 0.343 0.346 0.348 0.350 0.353 0.360 0.362 0.364 0.368 0.370 0.371 0.372 0.374 0.375 0.377 0.379 0.382 0.385 0.393 0.397 0.400 0.401 0.402 0.403 0.404 0.405 0.406 0.410 0.411 0.413 0.414 0.415 0.416 0.420 0.421 0.423 0.424 0.450 0.551 0.553 0.556 0.557 0.558 0.805 0.808 0.812 0.818 0.841 0.842 0.844 0.845 0.873 0.876 0.878 0.883 0.886 0.906 0.907 0.911 0.913 0.918 0.920 0.921 0.926 0.927 0.928 0.929 0.930 0.934 0.946 0.949 0.953 0.956 0.957 0.958 0.960 0.962 0.963 0.965 0.966 084.1 086.1 154.7 157.5 157.8 157.9 158.2 158.4 158.5 158.6 158.8 313.1 313.2 322.1 322.2 323.1 323.2 324.1 332.1 333.1 333.2 333.6 333.7 333.8 333.9 334.4 335.1 338.1 343.2 346.1 348.1 350.1 359.1 359.2 364.1 364.2 364.3 364.4 364.5 364.7 368.1 372.2 372.3 372.9 374.1 374.2 379.1 379.2 382.1 384.1 389.1 393.4 397.2 398.1 398.3 400.2 401.1 401.5 402.5 402.7 406.1 409.1 411.1 411.2 413.2 413.4 414.1 416.1 416.2 416.3 423.1 557.1 805.3 808.1 808.5 812.1 812.2 818.1 844.3 845.2 872.1 872.3 920.4 926.1 928.1 928.2 928.3 929.1 929.2 929.3 929.4 929.5 949.1 963.1 965.1 965.2").split(" ");
 
+// Mapeamento de Linhas por Setor para cruzamento dinâmico
+const LINHAS_POR_SETOR = {
+  'Brazlândia': ['0.400','0.401','0.402','0.403','0.404','0.405','0.406','0.410','0.411','0.413','0.414','0.416','0.420','0.421','0.423','0.424','0.450','400.2','401.1','402.5','402.7','406.1','409.1','411.1','411.2','413.2','413.4','414.1','416.1','416.2','416.3','423.1'],
+  'Estrutural': ['0.005','0.965','154.7','157.5','157.8','157.9','158.2','158.4','158.5','158.6','158.8','965.1','965.2'],
+  'Guará': ['0.092'],
+  'M Norte': ['0.049','0.322','0.323','0.324','0.360','0.364','0.368','0.371','0.377','322.1','322.2','323.1','324.1','364.2','364.4','364.7','368.1','389.1','963.1','963.2'],
+  'Pinheiros': ['0.047','0.159','0.332','0.907','313.1','333.9','364.1','364.3','364.5','929.3'],
+  'QNR': ['0.039','0.041','0.330','0.333','0.341','0.346','0.350','0.353','0.370','0.385','0.415','0.556','0.557','0.906','0.913','0.921','0.928','0.930','0.956','0.957','0.958','0.963','332.1','333.2','333.6','333.8','334.4','343.2','346.1','350.1','359.1','359.2','379.2','384.1','557.1','928.1','928.2','928.3'],
+  'Recanto das Emas': ['0.805','0.808','0.812','0.818','0.873','0.876','0.878','0.883','0.946','0.960','0.962','805.3','808.1','808.5','812.1','812.2','818.1','872.1','872.3'],
+  'Riacho Fundo': ['0.038','0.886','084.1','086.1'],
+  'Samambaia': ['0.053','0.372','0.393','0.842','0.844','0.845','0.953','372.2','372.3','372.9','393.4','398.1','398.3','844.3','845.2'],
+  'Setor O': ['0.310','0.311','0.312','0.313','0.331','0.334','0.335','0.338','0.343','0.348','0.362','0.374','0.375','0.379','0.382','0.397','0.551','0.553','0.558','0.911','0.918','0.920','0.926','0.927','0.929','0.934','0.949','0.966','313.2','323.2','333.1','333.7','335.1','338.1','348.1','374.1','374.2','379.1','382.1','397.2','920.4','926.1','929.1','929.2','929.4','929.5','949.1']
+};
+
 const itinerarioCache = new Map();
 
 // ---- filtros (gerados por JS) ----
@@ -150,10 +179,19 @@ document.getElementById('filters-manutencao').innerHTML = ['Brazlândia','Pinhei
 document.getElementById('filters-operacao').innerHTML = ['Brazlândia','Pinheiros','Estrutural','QNR','M Norte','Setor O','Guará','Riacho Fundo','Samambaia','Recanto das Emas','Reserva'].map(o => o === 'Reserva' ? chk('chk-operacao', o, '<b>Reserva</b>', 'color:#b91c1c;') : chk('chk-operacao', o, o === 'Recanto das Emas' ? 'Recanto' : o)).join('');
 document.getElementById('filters-modelo').innerHTML = [[MD.B3,'Básico (3 portas)'],[MD.B4,'Básico P. Esquerda (4 portas)'],[MD.A3,'Antigo Básico (3 portas)'],[MD.A4,'Antigo P. Esquerda (4 portas)'],[MD.MN,'MINI (Zebrinha)']].map(m => chk('chk-modelo', m[0], m[1])).join('');
 
-// ---- paradas / camadas ----
+// ---- paradas / terminais / camadas ----
 const chkStops = document.getElementById('chk-show-stops');
 chkStops.checked = localStorage.getItem('showStops') === 'true';
 chkStops.addEventListener('change', (e) => { localStorage.setItem('showStops', e.target.checked); triggerRenderLines(); });
+
+const chkTerminals = document.getElementById('chk-show-terminals');
+if (chkTerminals) {
+  chkTerminals.checked = localStorage.getItem('showTerminals') === 'true';
+  chkTerminals.addEventListener('change', (e) => {
+    localStorage.setItem('showTerminals', e.target.checked);
+    if (typeof window.renderTerminais === 'function') window.renderTerminais();
+  });
+}
 
 const savedLayer = localStorage.getItem('lastMapLayer') || "Padrão";
 const tiles = {
@@ -191,7 +229,7 @@ function getVehicleCore(prefixo) {
   return isNaN(n) ? null : n;
 }
 
-// [de, até, modelo, garagem, operação]  (a primeira regra que casa vale)
+// [de, até, modelo, garagem, operação]
 const REGRAS = [
   [1,33,'B3','Brazlândia','Brazlândia'],[34,56,'B3','Pinheiros','Pinheiros'],[57,65,'B3','Pinheiros','Estrutural'],[66,69,'B3','Pinheiros','Reserva'],
   [70,194,'B3','QNR','QNR'],[195,205,'B3','QNR','Reserva'],[206,232,'B3','Setor O','M Norte'],[233,333,'B3','Setor O','Setor O'],
@@ -328,7 +366,7 @@ async function renderLines() {
   const token = ++renderLinesToken;
   clearRouteLayers();
 
-  if (itemSelecionado && itemSelecionado.linha) {           // veículo clicado
+  if (itemSelecionado && itemSelecionado.linha) {
     const data = await fetchItinerarioData(itemSelecionado.linha);
     if (token !== renderLinesToken || !data || !data.itinerarios) return;
     const dir = String(itemSelecionado.sentido).toLowerCase().includes('volta') ? 1 : 0;
@@ -342,7 +380,7 @@ async function renderLines() {
     return;
   }
 
-  if (termosBusca.length !== 1) return;                     // só 1 linha pesquisada
+  if (termosBusca.length !== 1) return;
   const t = termosBusca[0];
   let linha = TODAS_LINHAS_EMPRESA.find(l => l === t || l.includes(t));
   if (!linha) { const m = busDataRaw.find(v => v.linha && v.linha.includes(t)); if (m) linha = m.linha; }
@@ -360,7 +398,7 @@ async function renderLines() {
   });
 }
 
-// ---- dados (o render() vem do bloco "monitor" logo abaixo) ----
+// ---- dados ----
 async function fetchData() {
   try {
     const r = await fetch(API_URL, { cache: 'no-store' });
@@ -385,13 +423,12 @@ function updateAppliedFiltersBadgeStack() {
   });
 }
 
-// Popup ajustado para abrir estritamente no clique
 function hoverPopup(m, o) {
   m.off('click', m._openPopup, m);
   m.on('click', () => { m.openPopup(); m._pin = true; });
   m.on('popupclose', () => { m._pin = false; });
 }
-// 1 clique no mapa (sem arrastar) desfaz a seleção; arrastar/zoom não fecha nada
+
 function limparSelecao() {
   const tinha = !!itemSelecionado;
   itemSelecionado = null; map.closePopup(); currentOpenPopup = null;
@@ -426,23 +463,23 @@ setInterval(fetchData, 10000);
   // ---------- CONFIG ----------
   const ICON_DIR = 'icons';
   const LOGO_URL = 'icons/logo/onibus-bsbus.png';
-  const RAIO_FORA_ROTA_M = 150;        // raio aceito ao redor da polyline
-  const RAIO_SENTIDO_INVERTIDO_M = 60; // perto da rota do sentido oposto => sentido trocado
-  const LEITURAS_PARA_ALERTA = 2;      // leituras seguidas fora do raio antes de alertar
-  const FATIA_MS = 12;                 // tempo máx. por fatia de cálculo (evita travar)
+  const RAIO_FORA_ROTA_M = 150;
+  const RAIO_SENTIDO_INVERTIDO_M = 60;
+  const LEITURAS_PARA_ALERTA = 2;
+  const FATIA_MS = 12;
   const DOWNLOADS_SIMULTANEOS = 6;
   const RETRY_FALHA_MS = 60000;
-  const MIN_MOVE_M = 8;                // movimento mínimo para recalcular rumo
-  const STALE_MIN = 30;                // minutos sem sinal => ícone semitransparente
+  const MIN_MOVE_M = 8;
+  const STALE_MIN = 30;
   const ESCONDER_BADGE_ABAIXO_ZOOM = 12;
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  const statusRota = {};   // prefixo -> { linha, dir, cont, fora, motivo, dist, semItin }
+  const statusRota = {};
   const shapeCache = new Map();
   const falhas = new Map();
-  const heads = {};        // prefixo -> { pos, heading }
+  const heads = {};
   let resumo = null, ultimaVerificacao = 0, checando = false, pendente = false, ultimaLista = null, progresso = '';
 
   // ---------- CSS ----------
@@ -468,7 +505,7 @@ setInterval(fetchData, 10000);
   .p-alerta{background:rgba(255,0,0,.1);color:var(--alerta);border-radius:8px;padding:5px 8px;margin-bottom:6px;font-size:12px;font-weight:700;text-align:center}
   .p-header.alerta{border-bottom-color:var(--alerta)!important}
 
-  .mon-fab{position:fixed;left:68px;bottom:max(20px,env(safe-area-inset-bottom));z-index:999;height:40px;border:none;border-radius:24px;padding:10px 14px;background:#fff;color:#166534;font-weight:800;font-size:13px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow);cursor:pointer;max-width:calc(100vw - 250px)}
+  .mon-fab{position:fixed;left:30px;bottom:max(20px,env(safe-area-inset-bottom));z-index:999;height:40px;border:none;border-radius:24px;padding:10px 14px;background:#fff;color:#166534;font-weight:800;font-size:13px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow);cursor:pointer;max-width:calc(100vw - 250px)}
   .mon-fab span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .mon-dot{width:10px;height:10px;border-radius:50%;background:#22c55e;flex:none}
   .mon-fab.alerta{background:var(--alerta);color:#fff}
@@ -545,7 +582,7 @@ setInterval(fetchData, 10000);
   }
 
   // =====================================================================
-  //  DETECÇÃO FORA DE ROTA (sem loops longos)
+  //  DETECÇÃO FORA DE ROTA
   // =====================================================================
   function carregarItin(linha) {
     return fetch('https://gps-bsbus.vercel.app/itinerario/' + linha)
@@ -762,7 +799,14 @@ setInterval(fetchData, 10000);
       }
       if (!isVNR) {
         if (manut.length && !manut.includes(specs.manutencao)) return;
-        if (oper.length && !oper.includes(specs.operacao)) return;
+        
+        // Validação da Operação OU Linha pertencente ao setor filtrado
+        if (oper.length) {
+          const atendeOperacao = oper.includes(specs.operacao);
+          const atendeLinhaSetor = oper.some(setor => LINHAS_POR_SETOR[setor] && LINHAS_POR_SETOR[setor].includes(linha));
+          if (!atendeOperacao && !atendeLinhaSetor) return;
+        }
+
         if (mods.length && !mods.includes(specs.modelo)) return;
       }
       if (termosBusca.length > 0) {
@@ -800,7 +844,6 @@ setInterval(fetchData, 10000);
         m._html = b.html; m.vData = v; m.specs = specs; m.tipo = tipo;
         m.bindPopup((layer) => createPopupMonitor(layer.vData, layer.specs, layer.tipo), { autoClose: false, closeOnClick: false, autoPan: false });
         
-        // Popup configurado para abrir somente com clique explícito
         m.on('click', () => {
           if (itemSelecionado && itemSelecionado.prefixo === m.vData.prefixo) { limparSelecao(); return; }
           if (currentOpenPopup && currentOpenPopup.isOpen()) map.closePopup(currentOpenPopup);
