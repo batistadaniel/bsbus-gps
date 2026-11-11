@@ -27,12 +27,12 @@ body,html{height:100%;width:100%;overflow:hidden;background:#e5e5e5}
 .suggestion-item.highlighted,.suggestion-item:hover{background:rgba(37,99,235,.15);color:var(--primary);font-weight:700}
 .leaflet-top.leaflet-left{top:max(10px,env(safe-area-inset-top))!important;left:15px!important;z-index:1000}
 .leaflet-control-layers{border-radius:12px!important;box-shadow:var(--shadow)!important;background:var(--surface)!important;border:1px solid rgba(0,0,0,.1)!important}
-.applied-filters-stack{position:absolute;right:15px;bottom:120px;z-index:999;display:flex;flex-direction:column;align-items:flex-end;gap:5px;max-height:calc(100vh - 200px);overflow-y:auto;pointer-events:none}
+.applied-filters-stack{position:absolute;right:15px;bottom:70px;z-index:999;display:flex;flex-direction:column;align-items:flex-end;gap:5px;max-height:calc(100vh - 200px);overflow-y:auto;pointer-events:none}
 .applied-tag{pointer-events:auto;background:#0f172a;color:#fff;font-size:11px;font-weight:700;padding:4px 9px;border-radius:10px;display:flex;align-items:center;gap:6px;box-shadow:var(--shadow);cursor:pointer}
 .applied-tag:hover{background:#ef4444}
 
 /* Botões do canto inferior direito (Cascata de controles) */
-.toggle-controls-group{position:absolute;bottom:calc(max(20px,env(safe-area-inset-bottom)) + 50px);right:15px;z-index:1000;display:flex;flex-direction: column;gap:8px;}
+.toggle-controls-group{position:absolute;bottom:calc(max(20px,env(safe-area-inset-bottom)) + 50px);left:15px;z-index:1000;display:flex;flex-direction: column;gap:8px;}
 .toggle-stops-btn{background:#fff;padding:8px 12px;border-radius:24px;box-shadow:var(--shadow);display:flex;align-items:center;justify-content: space-around;gap:6px;font-weight:700;font-size:12px;color:var(--text-main)}
 .btn-filter-toggle{position:absolute;bottom:max(20px,env(safe-area-inset-bottom));right:15px;z-index:1000;background:#0f172a;color:#fff;border:none;padding:10px 16px;border-radius:24px;font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;box-shadow:var(--shadow);cursor:pointer}
 
@@ -105,6 +105,10 @@ input:checked+.slider:before{transform:translateX(18px)}
 
 <!-- Botões de Controle em CASCATA no Canto Inferior Direito -->
 <div class="toggle-controls-group">
+  <div class="toggle-stops-btn">
+    <span class="toggle-label">Trânsito</span>
+    <label class="switch"><input type="checkbox" id="chk-show-traffic"><span class="slider"></span></label>
+  </div>
   <div class="toggle-stops-btn">
     <span class="toggle-label">Paradas</span>
     <label class="switch"><input type="checkbox" id="chk-show-stops"><span class="slider"></span></label>
@@ -202,7 +206,51 @@ const tiles = {
 const map = L.map('map', { zoomControl: false, closePopupOnClick: false, doubleClickZoom: false, maxZoom: 22 }).setView([-15.7942, -47.8822], 12);
 (tiles[savedLayer] || tiles["Padrão"]).addTo(map);
 L.control.layers(tiles, null, { position: 'topleft' }).addTo(map);
-map.on('baselayerchange', (e) => localStorage.setItem('lastMapLayer', e.name));
+
+// ---- Trânsito em tempo real (satélite sem rótulos + fluxo) ----
+const chkTraffic = document.getElementById('chk-show-traffic');
+const satTransito = L.tileLayer('https://mt{s}.google.com/vt/lyrs=s,traffic&x={x}&y={y}&z={z}&t={t}', {
+  subdomains: ['0','1','2','3'], maxZoom: 22, maxNativeZoom: 20, t: Date.now()
+});
+let trocandoBase = false, baseAntesTransito = null;
+const baseAtual = () => Object.keys(tiles).find(k => map.hasLayer(tiles[k]));
+
+function setTransito(on) {
+  trocandoBase = true;
+  if (on) {
+    baseAntesTransito = baseAtual() || localStorage.getItem('lastMapLayer') || "Padrão";
+    if (tiles[baseAntesTransito] && map.hasLayer(tiles[baseAntesTransito])) map.removeLayer(tiles[baseAntesTransito]);
+    satTransito.options.t = Date.now();
+    satTransito.addTo(map);
+  } else {
+    if (map.hasLayer(satTransito)) map.removeLayer(satTransito);
+    if (!baseAtual()) (tiles[baseAntesTransito] || tiles["Padrão"]).addTo(map);
+  }
+  trocandoBase = false;
+  chkTraffic.checked = on;
+  localStorage.setItem('showTraffic', on);
+}
+chkTraffic.addEventListener('change', (e) => setTransito(e.target.checked));
+
+// Se o usuário escolher outra base no seletor de camadas, o trânsito é desligado
+map.on('baselayerchange', (e) => {
+  if (trocandoBase) return;
+  localStorage.setItem('lastMapLayer', e.name);
+  if (chkTraffic.checked) {
+    trocandoBase = true;
+    if (map.hasLayer(satTransito)) map.removeLayer(satTransito);
+    trocandoBase = false;
+    chkTraffic.checked = false;
+    localStorage.setItem('showTraffic', false);
+  }
+});
+
+// Atualiza os tiles de trânsito a cada 2 minutos enquanto ligado
+setInterval(() => {
+  if (map.hasLayer(satTransito)) { satTransito.options.t = Date.now(); satTransito.redraw(); }
+}, 120000);
+
+if (localStorage.getItem('showTraffic') === 'true') setTransito(true);
 
 const controlPanel = document.getElementById('control-panel');
 const btnToggleFilters = document.getElementById('btn-toggle-filters');
@@ -321,6 +369,7 @@ function selectSuggestion(val) {
     document.getElementById('search-tags').appendChild(tag);
   }
   limparBuscaInput(); render(); triggerRenderLines(); updateAppliedFiltersBadgeStack();
+  if (typeof window.irParaPrefixo === 'function') window.irParaPrefixo(val);
 }
 function removerTag(e, val) {
   if (e) e.stopPropagation();
@@ -463,7 +512,7 @@ setInterval(fetchData, 10000);
   // ---------- CONFIG ----------
   const ICON_DIR = 'icons';
   const LOGO_URL = 'icons/logo/onibus-bsbus.png';
-  const RAIO_FORA_ROTA_M = 150;
+  const RAIO_FORA_ROTA_M = 25;
   const RAIO_SENTIDO_INVERTIDO_M = 60;
   const LEITURAS_PARA_ALERTA = 2;
   const FATIA_MS = 12;
@@ -505,12 +554,12 @@ setInterval(fetchData, 10000);
   .p-alerta{background:rgba(255,0,0,.1);color:var(--alerta);border-radius:8px;padding:5px 8px;margin-bottom:6px;font-size:12px;font-weight:700;text-align:center}
   .p-header.alerta{border-bottom-color:var(--alerta)!important}
 
-  .mon-fab{position:fixed;left:30px;bottom:max(20px,env(safe-area-inset-bottom));z-index:999;height:40px;border:none;border-radius:24px;padding:10px 14px;background:#fff;color:#166534;font-weight:800;font-size:13px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow);cursor:pointer;max-width:calc(100vw - 250px)}
+  .mon-fab{position:fixed;left:15px;bottom:max(20px,env(safe-area-inset-bottom));z-index:999;height:40px;border:none;border-radius:24px;padding:10px 14px;background:#fff;color:#166534;font-weight:800;font-size:13px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow);cursor:pointer;max-width:calc(100vw - 250px)}
   .mon-fab span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .mon-dot{width:10px;height:10px;border-radius:50%;background:#22c55e;flex:none}
   .mon-fab.alerta{background:var(--alerta);color:#fff}
   .mon-fab.alerta .mon-dot{background:#fff}
-  .mon-panel{display:none;position:fixed;left:15px;bottom:calc(max(20px,env(safe-area-inset-bottom)) + 62px);width:min(380px,calc(100vw - 30px));max-height:min(60vh,520px);flex-direction:column;background:#fff;border-radius:16px;box-shadow:var(--shadow);z-index:998;overflow:hidden}
+  .mon-panel{display:none;position:fixed;left:15px;bottom:calc(max(20px,env(safe-area-inset-bottom)) + 62px);width:min(380px,calc(100vw - 30px));max-height:min(60vh,520px);flex-direction:column;background:#fff;border-radius:16px;box-shadow:var(--shadow);z-index:4000;overflow:hidden}
   .mon-panel.open{display:flex}
   .mon-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px 2px;font-weight:800;font-size:15px;color:var(--text-main)}
   .mon-x{border:none;background:#f1f5f9;width:30px;height:30px;border-radius:50%;cursor:pointer;font-weight:800;color:var(--text-sec)}
@@ -532,7 +581,6 @@ setInterval(fetchData, 10000);
 
   @media (max-width:600px){
     .mon-panel{left:0;right:0;bottom:0;width:100%;max-height:68vh;border-radius:18px 18px 0 0;padding-bottom:env(safe-area-inset-bottom);z-index:1200}
-    .applied-filters-stack{bottom:calc(max(20px,env(safe-area-inset-bottom)) + 110px)}
   }`;
   const st = document.createElement('style');
   st.textContent = css;
@@ -921,6 +969,14 @@ setInterval(fetchData, 10000);
     const m = markers[v.prefixo];
     if (m) { m.openPopup(); currentOpenPopup = m.getPopup(); }
   }
+
+  // Busca por prefixo: centraliza no ônibus e abre o popup
+  window.irParaPrefixo = function (prefixo) {
+    const m = markers[String(prefixo)];
+    if (!m) return; // não é prefixo, ou veículo sem posição/oculto pelos filtros
+    map.flyTo(m.getLatLng(), Math.max(map.getZoom(), 17), { duration: 0.8 });
+    m.openPopup(); currentOpenPopup = m.getPopup();
+  };
 
   $('mon-fab').addEventListener('click', (e) => { e.stopPropagation(); painel(); });
   $('mon-close').addEventListener('click', () => painel(false));
