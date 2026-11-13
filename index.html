@@ -155,7 +155,7 @@ input:checked+.slider:before{transform:translateX(18px)}
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
-const API_URL = "https://gps-bsbus.vercel.app/veiculos";
+const API_URL = "https://gps-bsbus-v2.vercel.app/veiculos";
 const BSBUS_GREEN = "#4dff00";
 
 const TODAS_LINHAS_EMPRESA = ("0.005 0.038 0.039 0.041 0.047 0.049 0.053 0.092 0.159 0.310 0.311 0.312 0.313 0.322 0.323 0.324 0.330 0.331 0.332 0.333 0.334 0.335 0.338 0.341 0.343 0.346 0.348 0.350 0.353 0.360 0.362 0.364 0.368 0.370 0.371 0.372 0.374 0.375 0.377 0.379 0.382 0.385 0.393 0.397 0.400 0.401 0.402 0.403 0.404 0.405 0.406 0.410 0.411 0.413 0.414 0.415 0.416 0.420 0.421 0.423 0.424 0.450 0.551 0.553 0.556 0.557 0.558 0.805 0.808 0.812 0.818 0.841 0.842 0.844 0.845 0.873 0.876 0.878 0.883 0.886 0.906 0.907 0.911 0.913 0.918 0.920 0.921 0.926 0.927 0.928 0.929 0.930 0.934 0.946 0.949 0.953 0.956 0.957 0.958 0.960 0.962 0.963 0.965 0.966 084.1 086.1 154.7 157.5 157.8 157.9 158.2 158.4 158.5 158.6 158.8 313.1 313.2 322.1 322.2 323.1 323.2 324.1 332.1 333.1 333.2 333.6 333.7 333.8 333.9 334.4 335.1 338.1 343.2 346.1 348.1 350.1 359.1 359.2 364.1 364.2 364.3 364.4 364.5 364.7 368.1 372.2 372.3 372.9 374.1 374.2 379.1 379.2 382.1 384.1 389.1 393.4 397.2 398.1 398.3 400.2 401.1 401.5 402.5 402.7 406.1 409.1 411.1 411.2 413.2 413.4 414.1 416.1 416.2 416.3 423.1 557.1 805.3 808.1 808.5 812.1 812.2 818.1 844.3 845.2 872.1 872.3 920.4 926.1 928.1 928.2 928.3 929.1 929.2 929.3 929.4 929.5 949.1 963.1 965.1 965.2").split(" ");
@@ -448,63 +448,73 @@ async function renderLines() {
 }
 
 // ---- dados ----
-// Definição das URLs
-const API_PRINCIPAL = "https://gps-bsbus.vercel.app/veiculos";
-const API_SECUNDARIA = "https://gps-bsbus-v2.vercel.app/veiculos";
-
-let apiAtualEmUso = API_PRINCIPAL;
-let falhasConsecutivas = 0;
-
 async function fetchData() {
   try {
-    // Se estivermos usando a secundária, testa periodicamente se a principal voltou
-    if (apiAtualEmUso === API_SECUNDARIA) {
-      try {
-        const testePrincipal = await fetch(API_PRINCIPAL, { cache: 'no-store', method: 'HEAD' });
-        if (testePrincipal.ok) {
-          console.log("✔ A API oficial voltou! Retornando para a principal.");
-          apiAtualEmUso = API_PRINCIPAL;
-          falhasConsecutivas = 0;
-        }
-      } catch (err) {
-        // A principal continua fora, mantém na secundária
-      }
-    }
-
-    // Faz a requisição na API ativa no momento
-    const r = await fetch(apiAtualEmUso, { cache: 'no-store' });
-    if (!r.ok) throw new Error(`HTTP status ${r.status}`);
-    
+    const r = await fetch(API_URL, { cache: 'no-store' });
     const json = await r.json();
-    
-    // Normaliza caso a resposta venha direto como array ou dentro de .veiculos
-    busDataRaw = Array.isArray(json) ? json : (json.veiculos || []);
-    
+    busDataRaw = json.veiculos || [];
     render();
-
-    // Se deu certo na principal, reseta o contador de falhas
-    if (apiAtualEmUso === API_PRINCIPAL) {
-      falhasConsecutivas = 0;
-    }
-
-  } catch (e) {
-    console.warn(`⚠️ Falha ao buscar dados na API (${apiAtualEmUso}):`, e);
-
-    // Se a falha ocorreu na principal, acumulamos para evitar troca por instabilidade rápida de 1 segundo
-    if (apiAtualEmUso === API_PRINCIPAL) {
-      falhasConsecutivas++;
-      // Se falhar 1 vez na principal, assume a secundária temporariamente
-      if (falhasConsecutivas >= 1) {
-        console.log("🔄 Alternando para a API temporária do DFTrans (Fallback ativo)...");
-        apiAtualEmUso = API_SECUNDARIA;
-        fetchData(); // Tenta buscar imediatamente usando a secundária
-      }
-    } else {
-      // Se a secundária também falhar, no próximo ciclo tentamos a principal de novo
-      apiAtualEmUso = API_PRINCIPAL;
-    }
-  }
+  } catch (e) { console.error("Erro ao buscar dados:", e); }
 }
+
+// Usar futuramente
+// Definição das URLs
+// const API_PRINCIPAL = "https://gps-bsbus.vercel.app/veiculos";
+// const API_SECUNDARIA = "https://gps-bsbus-v2.vercel.app/veiculos";
+
+// let apiAtualEmUso = API_PRINCIPAL;
+// let falhasConsecutivas = 0;
+
+// async function fetchData() {
+//   try {
+//     // Se estivermos usando a secundária, testa periodicamente se a principal voltou
+//     if (apiAtualEmUso === API_SECUNDARIA) {
+//       try {
+//         const testePrincipal = await fetch(API_PRINCIPAL, { cache: 'no-store', method: 'HEAD' });
+//         if (testePrincipal.ok) {
+//           console.log("✔ A API oficial voltou! Retornando para a principal.");
+//           apiAtualEmUso = API_PRINCIPAL;
+//           falhasConsecutivas = 0;
+//         }
+//       } catch (err) {
+//         // A principal continua fora, mantém na secundária
+//       }
+//     }
+
+//     // Faz a requisição na API ativa no momento
+//     const r = await fetch(apiAtualEmUso, { cache: 'no-store' });
+//     if (!r.ok) throw new Error(`HTTP status ${r.status}`);
+    
+//     const json = await r.json();
+    
+//     // Normaliza caso a resposta venha direto como array ou dentro de .veiculos
+//     busDataRaw = Array.isArray(json) ? json : (json.veiculos || []);
+    
+//     render();
+
+//     // Se deu certo na principal, reseta o contador de falhas
+//     if (apiAtualEmUso === API_PRINCIPAL) {
+//       falhasConsecutivas = 0;
+//     }
+
+//   } catch (e) {
+//     console.warn(`⚠️ Falha ao buscar dados na API (${apiAtualEmUso}):`, e);
+
+//     // Se a falha ocorreu na principal, acumulamos para evitar troca por instabilidade rápida de 1 segundo
+//     if (apiAtualEmUso === API_PRINCIPAL) {
+//       falhasConsecutivas++;
+//       // Se falhar 1 vez na principal, assume a secundária temporariamente
+//       if (falhasConsecutivas >= 1) {
+//         console.log("🔄 Alternando para a API temporária do DFTrans (Fallback ativo)...");
+//         apiAtualEmUso = API_SECUNDARIA;
+//         fetchData(); // Tenta buscar imediatamente usando a secundária
+//       }
+//     } else {
+//       // Se a secundária também falhar, no próximo ciclo tentamos a principal de novo
+//       apiAtualEmUso = API_PRINCIPAL;
+//     }
+//   }
+// }
 
 // ---- filtros aplicados (tags) ----
 function updateAppliedFiltersBadgeStack() {
