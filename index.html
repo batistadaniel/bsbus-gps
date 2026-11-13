@@ -450,7 +450,7 @@ async function renderLines() {
 // ---- dados ----
 // Definição das URLs
 const API_PRINCIPAL = "https://gps-bsbus.vercel.app/veiculos";
-const API_SECUNDARIA = "https://www.sistemas.dftrans.df.gov.br/service/gps/operadora/3450";
+const API_SECUNDARIA = "https://gps-bsbus-v2.vercel.app/veiculos";
 
 let apiAtualEmUso = API_PRINCIPAL;
 let falhasConsecutivas = 0;
@@ -493,8 +493,8 @@ async function fetchData() {
     // Se a falha ocorreu na principal, acumulamos para evitar troca por instabilidade rápida de 1 segundo
     if (apiAtualEmUso === API_PRINCIPAL) {
       falhasConsecutivas++;
-      // Se falhar 2 vezes seguidas na principal, assume a secundária temporariamente
-      if (falhasConsecutivas >= 2) {
+      // Se falhar 1 vez na principal, assume a secundária temporariamente
+      if (falhasConsecutivas >= 1) {
         console.log("🔄 Alternando para a API temporária do DFTrans (Fallback ativo)...");
         apiAtualEmUso = API_SECUNDARIA;
         fetchData(); // Tenta buscar imediatamente usando a secundária
