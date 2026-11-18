@@ -692,7 +692,7 @@ setInterval(fetchData, 10000);
   //  DETECÇÃO FORA DE ROTA
   // =====================================================================
   function carregarItin(linha) {
-    return fetch('https://gps-bsbus.vercel.app/itinerario/' + linha)
+    return fetch('https://gps-bsbus-sage.vercel.app/itinerario/' + linha)
       .then((r) => r.json())
       .then((d) => {
         if (d && d.itinerarios) { itinerarioCache.set(linha, d); falhas.delete(linha); }
