@@ -389,7 +389,7 @@ async function fetchItinerarioData(linha) {
   if (!linha || linha === "0.001") return null;
   if (itinerarioCache.has(linha)) return itinerarioCache.get(linha);
   try {
-    const res = await fetch(`https://gps-bsbus.vercel.app/itinerario/${linha}`);
+    const res = await fetch(`https://gps-bsbus-sage.vercel.app/itinerario/${linha}`);
     const data = await res.json();
     if (data && data.itinerarios) { itinerarioCache.set(linha, data); return data; }
   } catch (err) { console.error(`Erro no itinerario da linha ${linha}:`, err); }
